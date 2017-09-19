@@ -1,17 +1,27 @@
 #include <string>
 #include <iostream>
+#include <fstream>
 #include <vector>
 
-#include "lib/fastaq/include/fasta.h"
-#include "lib/fastaq/include/reference.h"
+#include "fasta.h"
+#include "reference.h"
+#include "jellyfish/file_header.hpp"
 
 int main (int argc, char** argv) {
-	if (argc != 4) {
-		std::cerr << "USAGE: " << argv[0] << " data.jf FASTA kmer_size" << std::endl;
+	if (argc != 3) {
+		std::cerr << "USAGE: " << argv[0] << " db.jf FASTA" << std::endl;
 		return 1;
 	}
 
-	const int kmer_size = atoi(argv[3]);
+	std::ifstream db(argv[1], std::ios::in|std::ios::binary);
+	jellyfish::file_header header(db);
+	if(!db.good()) {
+		std::cerr << "Cannot open " << argv[1] << std::endl;
+		return 1;
+	}
+
+	const int kmer_size = header.key_len() / 2;
+	std::cerr << kmer_size << std::endl;
 
 	CReference ref;
 	Fasta::Load(ref, argv[2]);

@@ -7,7 +7,7 @@ LIB=$(MASTER_DIR)/lib
 AUTOCONF = autoconf
 AUTOHEADER = autoheader
 
-CFLAGS:=
+CFLAGS:=-pthread
 ifeq ($(mode), debug)
 	CFLAGS:=$(CFLAGS) -O0 -g -DDEBUG -D_DEBUG
 else
@@ -16,24 +16,35 @@ endif
 
 CXXFLAGS:=-std=c++11 $(CFLAGS)
 
-SUB_DIRS = $(LIB)/fastaq
+SUB_DIRS = $(LIB)/fastaq $(LIB)/jellyfish-2.2.6
 SOURCES = main.cpp
 
-all: AUX
+INCLUDE= -I lib/jellyfish-2.2.6/include -I lib/fastaq/include/
+
+all: fastaq
 	@mkdir -p $(BIN_DIR)
-	@$(CXX) $(CXXFLAGS) -o test $(SOURCES) $(LIB)/fastaq/obj/*.o -lz
+	@$(CXX) $(CXXFLAGS) -o test $(SOURCES) $(INCLUDE) $(LIB)/fastaq/obj/*.o $(LIB)/jellyfish-2.2.6/lib/*.o -lz
 
 .PHONY: all
 
 clean:
+	$(MAKE) -C $(LIB)/fastaq
+	$(MAKE) -C $(LIB)/jellyfish-2.2.6
 .PHONY: clean
 
 
 $(OBJ_DIR):
 	@mkdir -p $(OBJ_DIR)
 
-AUX: $(OBJ_DIR)
-	@for dir in $(SUB_DIRS); do \
-		$(MAKE) --no-print-directory --directory=$$dir; \
-	done
+fastaq:
+	@echo "- Building in fastaq"
+	@$(MAKE) --no-print-directory --directory=$(LIB)/fastaq
+
+jellyfish:
+	@echo "- Building in jellyfish"
+	@rm -f $(LIB)/jellyfish-2.2.6/configure
+	@rm -rf $(LIB)/jellyfish-2.2.6/autom4te.cache
+	@cd $(LIB)/jellyfish-2.2.6 && $(AUTOHEADER) && $(AUTOCONF) && ./configure
+	$(MAKE) --no-print-directory --directory=$(LIB)/jellyfish-2.2.6
+	
 
