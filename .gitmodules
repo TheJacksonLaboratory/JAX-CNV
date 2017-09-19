@@ -1,0 +1,3 @@
+[submodule "lib/fastaq"]
+	path = lib/fastaq
+	url = git@github.com:wanpinglee/fastaq.git
