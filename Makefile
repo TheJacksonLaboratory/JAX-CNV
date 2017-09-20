@@ -9,9 +9,9 @@ AUTOHEADER = autoheader
 
 CFLAGS:=-pthread
 ifeq ($(mode), debug)
-	CFLAGS:=$(CFLAGS) -O0 -g -DDEBUG -D_DEBUG
+	CFLAGS:=$(CFLAGS) -O0 -g
 else
-	CFLAGS:=$(CFLAGS) -mtune=native -O3 -DNDEBUG -DRELEASE
+	CFLAGS:=$(CFLAGS) -mtune=native -O3 -Wall
 endif
 
 CXXFLAGS:=-std=c++11 $(CFLAGS)

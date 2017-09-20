@@ -9,6 +9,33 @@
 #include "jellyfish/jellyfish.hpp"
 #include "jellyfish/mapped_file.hpp"
 
+// Calculate log2 score.
+char CeilLog2(const uint64_t in)
+{
+	uint64_t x = in;
+	static const unsigned long long t[6] = {
+		0xFFFFFFFF00000000ull,
+		0x00000000FFFF0000ull,
+		0x000000000000FF00ull,
+		0x00000000000000F0ull,
+		0x000000000000000Cull,
+		0x0000000000000002ull
+	};
+
+	//int y = (((x & (x - 1)) == 0) ? 0 : 1);
+	int y = (x > 0) ? 1 : 0;
+
+	for (int i = 0, j = 32; i < 6; i++) {
+		int k = (((x & t[i]) == 0) ? 0 : j);
+		y += k;
+		x >>= k;
+		j >>= 1;
+	}
+
+	// Use 125 as the max.
+	return (y > 92) ? 125 : y + 33;
+}
+
 int main (int argc, char** argv) {
 	if (argc != 3) {
 		std::cerr << "USAGE: " << argv[0] << " db.jf FASTA" << std::endl;
@@ -47,12 +74,14 @@ int main (int argc, char** argv) {
 	ref.GetReferenceNames(&ref_names);
 	for (unsigned int i = 0; i < ref_names.size(); i++) {
 		const int contig_len = ref.GetReferenceLength(ref_names[i].c_str());
+		std::cout << ref_names[i] << std::endl;
 		for (int j = 0; j < contig_len - kmer_size; ++j) {
 			jellyfish::mer_dna m;
 			m = ref.GetSubString(ref_names[i], j, kmer_size).c_str();
 			if (header.canonical()) m.canonicalize();
-			std::cout << bq.check(m) << std::endl;
+			std::cout << CeilLog2(bq.check(m));
 			//std::cout << ref.GetSubString(ref_names[i], j, kmer_size) << std::endl;
 		}
 	}
+	std::cout << std::endl;
 }
