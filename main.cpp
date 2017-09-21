@@ -76,7 +76,7 @@ int main (int argc, char** argv) {
 				header.size() - 1, binary_map.length() - header.offset());
 
 	CReference ref; // fastaq lib.
-	Fasta::Load(ref, cmdline.fasta.c_str()); // fastaq lib.
+	Fastaq::Load(ref, cmdline.fasta.c_str()); // fastaq lib.
 	std::vector<std::string> ref_names;
 	ref.GetReferenceNames(&ref_names);
 	for (unsigned int i = 0; i < ref_names.size(); i++) {
