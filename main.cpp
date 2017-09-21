@@ -3,8 +3,14 @@
 #include <fstream>
 #include <vector>
 
+// Self include
+#include "include/CommandLine.h"
+
+// FASTAQ include
 #include "fasta.h"
 #include "reference.h"
+
+// Jellyfish include
 #include "jellyfish/file_header.hpp"
 #include "jellyfish/jellyfish.hpp"
 #include "jellyfish/mapped_file.hpp"
@@ -37,8 +43,9 @@ char CeilLog2(const uint64_t in)
 }
 
 int main (int argc, char** argv) {
-	if (argc != 3) {
-		std::cerr << "USAGE: " << argv[0] << " db.jf FASTA" << std::endl;
+	SCmdLine cmdline;
+	if (!cmdline.Parse(argc, argv)) {
+		std::cerr << cmdline.Help(argv[0]);
 		return 1;
 	}
 
@@ -74,12 +81,21 @@ int main (int argc, char** argv) {
 	ref.GetReferenceNames(&ref_names);
 	for (unsigned int i = 0; i < ref_names.size(); i++) {
 		const int contig_len = ref.GetReferenceLength(ref_names[i].c_str());
-		std::cout << ref_names[i] << std::endl;
+		std::cout << ">" << ref_names[i] << std::endl;
+		int score_count = 0;
+		char score = '\0';
 		for (int j = 0; j < contig_len - kmer_size; ++j) {
 			jellyfish::mer_dna m;
 			m = ref.GetSubString(ref_names[i], j, kmer_size).c_str();
 			if (header.canonical()) m.canonicalize();
-			std::cout << CeilLog2(bq.check(m));
+			if (CeilLog2(bq.check(m)) == score) {
+				++score_count;
+			} else {
+				if (score != '\0')
+					std::cout << score << "\t" << score_count << std::endl;
+				score_count = 1;
+				score = CeilLog2(bq.check(m));
+			}
 			//std::cout << ref.GetSubString(ref_names[i], j, kmer_size) << std::endl;
 		}
 	}
