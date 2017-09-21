@@ -43,17 +43,17 @@ char CeilLog2(const uint64_t in)
 }
 
 int main (int argc, char** argv) {
-	SCmdLine cmdline;
-	if (!cmdline.Parse(argc, argv)) {
+	const SCmdLine cmdline(argc, argv);
+	if (!cmdline.CheckArg()) {
 		std::cerr << cmdline.Help(argv[0]);
 		return 1;
 	}
 
 	// Read jellyfish database
-	std::ifstream db(argv[1], std::ios::in|std::ios::binary);
+	std::ifstream db(cmdline.input_jfdb, std::ios::in|std::ios::binary);
 	jellyfish::file_header header(db);
 	if(!db.good()) { // The jellyfish database is broken.
-		std::cerr << "ERROR: Cannot open " << argv[1] << std::endl;
+		std::cerr << "ERROR: Cannot open " << cmdline.input_jfdb << std::endl;
 		return 1;
 	}
 	if (header.format() != binary_dumper::format) {
@@ -70,13 +70,13 @@ int main (int argc, char** argv) {
 	}
 
 	// Load jellyfish database as query db.
-	jellyfish::mapped_file binary_map(argv[1]);
+	jellyfish::mapped_file binary_map(cmdline.input_jfdb.c_str());
 	binary_map.load(); // Load in memory for speedup.
 	binary_query bq(binary_map.base() + header.offset(), header.key_len(), header.counter_len(), header.matrix(),
 				header.size() - 1, binary_map.length() - header.offset());
 
 	CReference ref; // fastaq lib.
-	Fasta::Load(ref, argv[2]); // fastaq lib.
+	Fasta::Load(ref, cmdline.fasta.c_str()); // fastaq lib.
 	std::vector<std::string> ref_names;
 	ref.GetReferenceNames(&ref_names);
 	for (unsigned int i = 0; i < ref_names.size(); i++) {
