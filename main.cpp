@@ -9,6 +9,7 @@
 // FASTAQ include
 #include "fasta.h"
 #include "reference.h"
+#include "region.h"
 
 // Jellyfish include
 #include "jellyfish/file_header.hpp"
@@ -75,7 +76,9 @@ int main (int argc, char** argv) {
 	binary_query bq(binary_map.base() + header.offset(), header.key_len(), header.counter_len(), header.matrix(),
 				header.size() - 1, binary_map.length() - header.offset());
 
-	CReference ref; // fastaq lib.
+	// Parse region.
+	if (!cmdline.region.empty())
+	Fastaq::CReference ref; // fastaq lib.
 	Fastaq::FastaLoad(ref, cmdline.fasta.c_str()); // fastaq lib.
 	std::vector<std::string> ref_names;
 	ref.GetReferenceNames(&ref_names);
