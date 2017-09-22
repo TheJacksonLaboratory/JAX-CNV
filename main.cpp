@@ -77,9 +77,28 @@ int main (int argc, char** argv) {
 				header.size() - 1, binary_map.length() - header.offset());
 
 	// Parse region.
-	if (!cmdline.region.empty())
+	Fastaq::SRegion region;
+	if (!cmdline.region.empty()) {
+		if (!region.Parse(cmdline.region)) {
+			std::cerr << "ERROR: The given region is not valid." << std::endl;
+			return 1;
+		}
+	}
+
+	// Load reference from FASTA.
 	Fastaq::CReference ref; // fastaq lib.
-	Fastaq::FastaLoad(ref, cmdline.fasta.c_str()); // fastaq lib.
+	if (!cmdline.region.empty()) {
+		if (!Fastaq::FastaLoad(ref, cmdline.fasta.c_str(), true, region.chr.c_str())) {
+			std::cerr << "ERROR: Cannot load chromosome " << region.chr << " from FASTA." << std::endl;
+			return 1;
+		}
+	} else {
+		if (!Fastaq::FastaLoad(ref, cmdline.fasta.c_str())) {
+			std::cerr << "ERROR: Cannot load FASTA." << std::endl;
+			return 1;
+		}
+	}
+
 	std::vector<std::string> ref_names;
 	ref.GetReferenceNames(&ref_names);
 	for (unsigned int i = 0; i < ref_names.size(); i++) {
