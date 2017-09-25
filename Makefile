@@ -27,7 +27,7 @@ INCLUDE= -I lib/jellyfish-2.2.6/include -I lib/fastaq/include/
 all: $(PROGRAM)
 .PHONY: all
 
-$(PROGRAM): fastaq $(JELLYFISH)
+$(PROGRAM): fastaq $(JELLYFISH) $(SOURCES)
 	@mkdir -p $(BIN_DIR)
 	@$(CXX) $(CXXFLAGS) -o $@ $(SOURCES) $(INCLUDE) $(LIB)/fastaq/obj/*.o $(LIB)/jellyfish-2.2.6/lib/*.o -lz
 
@@ -41,16 +41,18 @@ clean:
 
 
 $(OBJ_DIR):
-	@mkdir -p $(OBJ_DIR)
+	@mkdir -p $@
+$(BIN_DIR):
+	@mkdir -p $@
 
 fastaq:
 	@echo "- Building in fastaq"
 	@$(MAKE) --no-print-directory --directory=$(LIB)/fastaq
 
-$(JELLYFISH):
+$(JELLYFISH): $(BIN_DIR)
 	@echo "- Building in jellyfish"
 	@cd $(LIB) && tar -zxvf $(LIB)/jellyfish-2.2.6.tar.gz
 	@cd $(LIB)/jellyfish-2.2.6 && ./configure --prefix=$(LIB)/jellyfish-2.2.6
 	$(MAKE) --no-print-directory --directory=$(LIB)/jellyfish-2.2.6
-	
+	@cp $@ $(BIN_DIR)
 

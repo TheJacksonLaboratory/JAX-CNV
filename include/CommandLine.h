@@ -16,6 +16,7 @@ struct SCmdLine {
 
 	// operation parameters
 	std::string region;     // -r --region
+	int bin = 1;
 	bool running_length_encoding = false; // --rle
 	
 	// command line
@@ -35,12 +36,23 @@ struct SCmdLine {
 		std::string("\n") +
 		std::string("Operations:\n") +
 		std::string("	-r --region chr:begin-end	Specify a target region.\n") +
+		std::string("	--bin <INT>			Report a result for each # bp. [1]\n") +
 		std::string("	--rle				Ouput by running length encoding.\n");
 	}
 
 	// Check the required arguments.
 	bool CheckArg () const {
-		return !input_jfdb.empty() && !fasta.empty();
+		bool ok = true;
+		if (bin < 1) {
+			std::cerr << "ERROR: --bin <INT> should not smaller than 1." << std::endl;
+			ok = false;
+		}
+		if (bin > 1 && running_length_encoding) {
+			std::cerr << "ERROR: --rle only work for --bin 1." << std::endl;
+			ok = false;
+		}
+
+		return ok && !input_jfdb.empty() && !fasta.empty();
 	}
 
 	bool Parse (const int argc, char** const argv) {
@@ -55,7 +67,8 @@ struct SCmdLine {
 
 			// operation parameters
 			{"region", required_argument, NULL, 'r'},
-			{"rle", no_argument, NULL, 1},
+			{"bin", required_argument, NULL, 1},
+			{"rle", no_argument, NULL, 2},
 			{0,0,0,0}
 		};
 		int option_index = 0;
@@ -67,7 +80,8 @@ struct SCmdLine {
 				case 'f': fasta = optarg; break;
 				case 'o': output = optarg; break;
 				case 'r': region = optarg; break;
-				case 1: running_length_encoding = true; break;
+				case 1: bin = atoi(optarg); break;
+				case 2: running_length_encoding = true; break;
 				default: std::cerr << "WARNING: Unkonw parameter: " << long_option[option_index].name << std::endl; break;
 			}
 		}

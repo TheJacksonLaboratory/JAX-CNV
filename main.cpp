@@ -44,7 +44,10 @@ char CeilLog2 (const uint64_t in)
 }
 
 void GetKmerCount (const Fastaq::CReference & ref, const Fastaq::SRegion & region, const unsigned int & kmer_size, 
-			const jellyfish::file_header & header, const binary_query & bq, const bool & running_length_encoding) {
+			const jellyfish::file_header & header, const binary_query & bq, const bool & running_length_encoding,
+			const int & bin) {
+
+	if (bin < 1) return;
 
 	std::vector<std::string> ref_names;
 	ref.GetReferenceNames(&ref_names);
@@ -59,7 +62,8 @@ void GetKmerCount (const Fastaq::CReference & ref, const Fastaq::SRegion & regio
 		//if (cmdline.region.empty()) // Ouput refernce name only if a region is not given.
 		//	std::cout << ">" << ref_names[i] << std::endl;
 
-		int score_count = 0;
+		unsigned int score_count = 0;
+		unsigned int score_sum = 0;
 		char score = '\0';
 		for (unsigned int j = target_begin; j < target_len - kmer_size; ++j) {
 			jellyfish::mer_dna m;
@@ -75,9 +79,12 @@ void GetKmerCount (const Fastaq::CReference & ref, const Fastaq::SRegion & regio
 					score = CeilLog2(bq.check(m));
 				}
 			} else { // not running_length_encoding
-				std::cout << CeilLog2(bq.check(m));
+				score_sum += CeilLog2(bq.check(m));
+				if (((j-target_begin + 1) % bin) == 0) {
+					std::cout << static_cast<char>(score_sum / bin);
+					score_sum = 0;
+				}
 			}
-			//std::cout << ref.GetSubString(ref_names[i], j, kmer_size) << std::endl;
 		}
 		// Output the last score. Only running_length_encoding mode will use this.
 		if (score_count > 0)
@@ -151,7 +158,7 @@ int main (int argc, char** argv) {
 		std::cout.rdbuf(ofs.rdbuf()); //redirect std::cout to file;
 	}
 
-	GetKmerCount(ref, region, kmer_size, header, bq, cmdline.running_length_encoding);
+	GetKmerCount(ref, region, kmer_size, header, bq, cmdline.running_length_encoding, cmdline.bin);
 
 	// Clean up
 	if (!cmdline.output.empty()) {
