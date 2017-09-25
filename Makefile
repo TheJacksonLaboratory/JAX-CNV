@@ -19,17 +19,23 @@ CXXFLAGS:=-std=c++11 $(CFLAGS)
 SUB_DIRS = $(LIB)/fastaq $(LIB)/jellyfish-2.2.6
 SOURCES = main.cpp
 
+PROGRAM=$(BIN_DIR)/GetKmerCount
+
 INCLUDE= -I lib/jellyfish-2.2.6/include -I lib/fastaq/include/
 
-all: fastaq
+all: $(PROGRAM)
+.PHONY: all
+
+$(PROGRAM): fastaq jellyfish
 	@mkdir -p $(BIN_DIR)
-	@$(CXX) $(CXXFLAGS) -o test $(SOURCES) $(INCLUDE) $(LIB)/fastaq/obj/*.o $(LIB)/jellyfish-2.2.6/lib/*.o -lz
+	@$(CXX) $(CXXFLAGS) -o $@ $(SOURCES) $(INCLUDE) $(LIB)/fastaq/obj/*.o $(LIB)/jellyfish-2.2.6/lib/*.o -lz
 
 .PHONY: all
 
 clean:
-	$(MAKE) -C $(LIB)/fastaq
-	$(MAKE) -C $(LIB)/jellyfish-2.2.6
+	$(MAKE) clean -C $(LIB)/fastaq
+	$(MAKE) clean -C $(LIB)/jellyfish-2.2.6
+	@rm -rf $(OBJ_DIR) $(BIN_DIR)
 .PHONY: clean
 
 
@@ -42,9 +48,7 @@ fastaq:
 
 jellyfish:
 	@echo "- Building in jellyfish"
-	@rm -f $(LIB)/jellyfish-2.2.6/configure
-	@rm -rf $(LIB)/jellyfish-2.2.6/autom4te.cache
-	@cd $(LIB)/jellyfish-2.2.6 && $(AUTOHEADER) && $(AUTOCONF) && ./configure
+	@cd $(LIB)/jellyfish-2.2.6 && ./configure --prefix=$(LIB)/jellyfish-2.2.6
 	$(MAKE) --no-print-directory --directory=$(LIB)/jellyfish-2.2.6
 	
 
