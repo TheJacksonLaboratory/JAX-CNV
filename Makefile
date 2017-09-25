@@ -20,13 +20,14 @@ SUB_DIRS = $(LIB)/fastaq $(LIB)/jellyfish-2.2.6
 SOURCES = main.cpp
 
 PROGRAM=$(BIN_DIR)/GetKmerCount
+JELLYFISH=$(LIB)/jellyfish-2.2.6/bin/jellyfish
 
 INCLUDE= -I lib/jellyfish-2.2.6/include -I lib/fastaq/include/
 
 all: $(PROGRAM)
 .PHONY: all
 
-$(PROGRAM): fastaq jellyfish
+$(PROGRAM): fastaq $(JELLYFISH)
 	@mkdir -p $(BIN_DIR)
 	@$(CXX) $(CXXFLAGS) -o $@ $(SOURCES) $(INCLUDE) $(LIB)/fastaq/obj/*.o $(LIB)/jellyfish-2.2.6/lib/*.o -lz
 
@@ -34,7 +35,7 @@ $(PROGRAM): fastaq jellyfish
 
 clean:
 	$(MAKE) clean -C $(LIB)/fastaq
-	$(MAKE) clean -C $(LIB)/jellyfish-2.2.6
+	@rm -rf $(LIB)/jellyfish-2.2.6
 	@rm -rf $(OBJ_DIR) $(BIN_DIR)
 .PHONY: clean
 
@@ -46,8 +47,9 @@ fastaq:
 	@echo "- Building in fastaq"
 	@$(MAKE) --no-print-directory --directory=$(LIB)/fastaq
 
-jellyfish:
+$(JELLYFISH):
 	@echo "- Building in jellyfish"
+	@cd $(LIB) && tar -zxvf $(LIB)/jellyfish-2.2.6.tar.gz
 	@cd $(LIB)/jellyfish-2.2.6 && ./configure --prefix=$(LIB)/jellyfish-2.2.6
 	$(MAKE) --no-print-directory --directory=$(LIB)/jellyfish-2.2.6
 	
