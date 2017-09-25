@@ -43,15 +43,15 @@ char CeilLog2 (const uint64_t in)
 	return (y > 92) ? 125 : y + 33;
 }
 
-void GetKmerCount (const Fastaq::CReference & ref, const Fastaq::SRegion & region, 
-			const unsigned int & kmer_size, const jellyfish::file_header & header, const binary_query & bq) {
+void GetKmerCount (const Fastaq::CReference & ref, const Fastaq::SRegion & region, const unsigned int & kmer_size, 
+			const jellyfish::file_header & header, const binary_query & bq, const bool & running_length_encoding) {
 
 	std::vector<std::string> ref_names;
 	ref.GetReferenceNames(&ref_names);
 	// If a region is given, there will be only one reference in the vector.
 	for (unsigned int i = 0; i < ref_names.size(); i++) {
 		const unsigned int target_len = std::min(ref.GetReferenceLength(ref_names[i].c_str()), region.end);
-		const unsigned int target_begin = std::min(static_cast<unsigned int>(0), region.begin);
+		const unsigned int target_begin = std::max(static_cast<unsigned int>(0), region.begin);
 
 		// Cannot proceed when target_len < kmer_size
 		if (target_len < kmer_size) break;
@@ -65,19 +65,25 @@ void GetKmerCount (const Fastaq::CReference & ref, const Fastaq::SRegion & regio
 			jellyfish::mer_dna m;
 			m = ref.GetSubString(ref_names[i], j, kmer_size).c_str();
 			if (header.canonical()) m.canonicalize();
-			if (CeilLog2(bq.check(m)) == score) {
-				++score_count;
-			} else {
-				if (score != '\0')
-					std::cout << score << "\t" << score_count << std::endl;
-				score_count = 1;
-				score = CeilLog2(bq.check(m));
+			if (running_length_encoding) {
+				if (CeilLog2(bq.check(m)) == score) {
+					++score_count;
+				} else {
+					if (score != '\0')
+						std::cout << score << "\t" << score_count << std::endl;
+					score_count = 1;
+					score = CeilLog2(bq.check(m));
+				}
+			} else { // not running_length_encoding
+				std::cout << CeilLog2(bq.check(m));
 			}
 			//std::cout << ref.GetSubString(ref_names[i], j, kmer_size) << std::endl;
 		}
-		// Output the last score
+		// Output the last score. Only running_length_encoding mode will use this.
 		if (score_count > 0)
 			std::cout << score << "\t" << score_count << std::endl;
+		if (!running_length_encoding)
+			std::cout << std::endl;
 	}
 }
 
@@ -137,6 +143,7 @@ int main (int argc, char** argv) {
 		}
 	}
 
+	// Open output if given.
 	std::ofstream ofs;
 	std::streambuf *coutbuf = std::cout.rdbuf(); //save old buf
 	if (!cmdline.output.empty()) {
@@ -144,8 +151,9 @@ int main (int argc, char** argv) {
 		std::cout.rdbuf(ofs.rdbuf()); //redirect std::cout to file;
 	}
 
-	GetKmerCount(ref, region, kmer_size, header, bq);
+	GetKmerCount(ref, region, kmer_size, header, bq, cmdline.running_length_encoding);
 
+	// Clean up
 	if (!cmdline.output.empty()) {
 		std::cout.rdbuf(coutbuf); //reset to standard output again
 		ofs.close();
