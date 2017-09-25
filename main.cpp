@@ -17,7 +17,7 @@
 #include "jellyfish/mapped_file.hpp"
 
 // Calculate log2 score.
-char CeilLog2(const uint64_t in)
+char CeilLog2 (const uint64_t in)
 {
 	uint64_t x = in;
 	static const unsigned long long t[6] = {
@@ -41,6 +41,44 @@ char CeilLog2(const uint64_t in)
 
 	// Use 125 as the max.
 	return (y > 92) ? 125 : y + 33;
+}
+
+void GetKmerCount (const Fastaq::CReference & ref, const Fastaq::SRegion & region, 
+			const unsigned int & kmer_size, const jellyfish::file_header & header, const binary_query & bq) {
+
+	std::vector<std::string> ref_names;
+	ref.GetReferenceNames(&ref_names);
+	// If a region is given, there will be only one reference in the vector.
+	for (unsigned int i = 0; i < ref_names.size(); i++) {
+		const unsigned int target_len = std::min(ref.GetReferenceLength(ref_names[i].c_str()), region.end);
+		const unsigned int target_begin = std::min(static_cast<unsigned int>(0), region.begin);
+
+		// Cannot proceed when target_len < kmer_size
+		if (target_len < kmer_size) break;
+
+		//if (cmdline.region.empty()) // Ouput refernce name only if a region is not given.
+		//	std::cout << ">" << ref_names[i] << std::endl;
+
+		int score_count = 0;
+		char score = '\0';
+		for (unsigned int j = target_begin; j < target_len - kmer_size; ++j) {
+			jellyfish::mer_dna m;
+			m = ref.GetSubString(ref_names[i], j, kmer_size).c_str();
+			if (header.canonical()) m.canonicalize();
+			if (CeilLog2(bq.check(m)) == score) {
+				++score_count;
+			} else {
+				if (score != '\0')
+					std::cout << score << "\t" << score_count << std::endl;
+				score_count = 1;
+				score = CeilLog2(bq.check(m));
+			}
+			//std::cout << ref.GetSubString(ref_names[i], j, kmer_size) << std::endl;
+		}
+		// Output the last score
+		if (score_count > 0)
+			std::cout << score << "\t" << score_count << std::endl;
+	}
 }
 
 int main (int argc, char** argv) {
@@ -99,37 +137,18 @@ int main (int argc, char** argv) {
 		}
 	}
 
-	std::vector<std::string> ref_names;
-	ref.GetReferenceNames(&ref_names);
-	// If a region is given, there will be only one reference in the vector.
-	for (unsigned int i = 0; i < ref_names.size(); i++) {
-		const unsigned int target_len = std::min(ref.GetReferenceLength(ref_names[i].c_str()), region.end);
-		const unsigned int target_begin = std::min(static_cast<unsigned int>(0), region.begin);
-
-		// Cannot proceed when target_len < kmer_size
-		if (target_len < kmer_size) break;
-
-		if (cmdline.region.empty()) // Ouput refernce name only if a region is not given.
-			std::cout << ">" << ref_names[i] << std::endl;
-
-		int score_count = 0;
-		char score = '\0';
-		for (unsigned int j = target_begin; j < target_len - kmer_size; ++j) {
-			jellyfish::mer_dna m;
-			m = ref.GetSubString(ref_names[i], j, kmer_size).c_str();
-			if (header.canonical()) m.canonicalize();
-			if (CeilLog2(bq.check(m)) == score) {
-				++score_count;
-			} else {
-				if (score != '\0')
-					std::cout << score << "\t" << score_count << std::endl;
-				score_count = 1;
-				score = CeilLog2(bq.check(m));
-			}
-			//std::cout << ref.GetSubString(ref_names[i], j, kmer_size) << std::endl;
-		}
-		// Output the last score
-		if (score_count > 0)
-			std::cout << score << "\t" << score_count << std::endl;
+	std::ofstream ofs;
+	std::streambuf *coutbuf = std::cout.rdbuf(); //save old buf
+	if (!cmdline.output.empty()) {
+		ofs.open(cmdline.output, std::ofstream::out | std::ofstream::app);
+		std::cout.rdbuf(ofs.rdbuf()); //redirect std::cout to file;
 	}
+
+	GetKmerCount(ref, region, kmer_size, header, bq);
+
+	if (!cmdline.output.empty()) {
+		std::cout.rdbuf(coutbuf); //reset to standard output again
+		ofs.close();
+	}
+
 }
