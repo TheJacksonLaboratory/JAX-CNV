@@ -157,10 +157,23 @@ void ProcessBam (const char * bam_filename, const Fastaq::SRegion & region, cons
 	SBamData bam_data;
 
 	if (region.chr.empty()) { // the region is not set
+		int pre_bin = 0;
+		int pre_tid = 0;
 		while (sam_read1(bam_reader, header, aln) >= 0) {
-			if (aln->core.pos % bin == 0) {
+			// Enter a new chr.
+			if (aln->core.tid != pre_tid) {
+				pre_bin = 0;
+				pre_tid = aln->core.tid;
+			}
+			const int cur_bin = aln->core.pos / bin;
+			if (cur_bin != pre_bin) {
+				for (int i = pre_bin; i < cur_bin - 1; ++i) {
+					SBamData dummy_data;
+					PrintBamData(dummy_data);
+				}
 				PrintBamData(bam_data);
 				bam_data.Clean();
+				pre_bin = cur_bin;
 			}
 			ProcessAlignment(bam_data, aln);
 		}
@@ -180,10 +193,17 @@ void ProcessBam (const char * bam_filename, const Fastaq::SRegion & region, cons
 		if (load_index) {
 			const std::string cat_region = region.chr + ":" + std::to_string(region.begin) + '-' +  std::to_string(region.end);
 			hts_itr_t * iter = sam_itr_querys(idx, header, cat_region.c_str());
+			int pre_bin = region.begin / bin;
 			while (iter && sam_itr_next(bam_reader, iter, aln) >= 0) {
-				if ((aln->core.pos - region.begin + 1) % bin == 0) {
+				const int cur_bin = aln->core.pos / bin;
+				if ((cur_bin > pre_bin) && (cur_bin != pre_bin)) {
+					for (int i = pre_bin; i < cur_bin - 1; ++i) {
+						SBamData dummy_data;
+						PrintBamData(dummy_data);
+					}
 					PrintBamData(bam_data);
 					bam_data.Clean();
+					pre_bin = cur_bin;
 				}
 				ProcessAlignment(bam_data, aln);
 			}
