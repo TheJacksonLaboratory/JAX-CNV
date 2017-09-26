@@ -44,9 +44,9 @@ clean:
 
 
 $(OBJ_DIR):
-	@mkdir -p $@
+	@mkdir -p $(OBJ_DIR)
 $(BIN_DIR):
-	@mkdir -p $@
+	@mkdir -p $(BIN_DIR)
 
 fastaq:
 	@echo "- Building in fastaq"
@@ -57,7 +57,8 @@ $(JELLYFISH):
 	@cd $(LIB) && tar -zxvf $(LIB)/jellyfish-2.2.6.tar.gz
 	@cd $(LIB)/jellyfish-2.2.6 && ./configure --prefix=$(LIB)/jellyfish-2.2.6
 	$(MAKE) --no-print-directory --directory=$(LIB)/jellyfish-2.2.6
-	@cp $@ $(BIN_DIR)
+	@mkdir -p $(BIN_DIR)
+	@cp $(JELLYFISH) $(BIN_DIR)
 
 $(HTS_LIB):
 	@echo "- Building in htslib"
