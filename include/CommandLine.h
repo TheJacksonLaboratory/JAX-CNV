@@ -12,6 +12,7 @@ struct SCmdLine {
 	// i/o
 	std::string input_jfdb; // -i --input
 	std::string fasta;      // -f --fasta
+	std::string bam;	// -b --bam
 	std::string output;     // -o --output
 
 	// operation parameters
@@ -22,7 +23,7 @@ struct SCmdLine {
 	// command line
 	std::string cmd;
 
-	const char* short_option = "hi:f:o:r:";
+	const char* short_option = "hi:f:b:o:r:";
 
 	// Help list
 	const std::string Help (const char* program) const { return
@@ -31,7 +32,8 @@ struct SCmdLine {
 		std::string("\n") +
 		std::string("Input & Output:\n") +
 		std::string("	-i --input <jellyfish_db>	Jellyfish created count database.\n") +
-		std::string("	-f --fasta <FASTA>		FASTA for kmer loopup.\n") +
+		std::string("	-f --fasta <FASTA>		FASTA for kmer lookup.\n") +
+		std::string("	-b --bam <BAM>			Input BAM.\n") +
 		std::string("	-o --output <FILE>		Output file.\n") +
 		std::string("\n") +
 		std::string("Operations:\n") +
@@ -52,7 +54,7 @@ struct SCmdLine {
 			ok = false;
 		}
 
-		return ok && !input_jfdb.empty() && !fasta.empty();
+		return ok && ((!input_jfdb.empty() && !fasta.empty()) || !bam.empty());
 	}
 
 	bool Parse (const int argc, char** const argv) {
@@ -63,6 +65,7 @@ struct SCmdLine {
 			// i/o
 			{"input", required_argument, NULL, 'i'},
 			{"fasta", required_argument, NULL, 'f'},
+			{"bam", required_argument, NULL, 'b'},
 			{"output", required_argument, NULL, 'o'},
 
 			// operation parameters
@@ -78,6 +81,7 @@ struct SCmdLine {
 				case 'h': help = true; break;
 				case 'i': input_jfdb = optarg; break;
 				case 'f': fasta = optarg; break;
+				case 'b': bam = optarg; break;
 				case 'o': output = optarg; break;
 				case 'r': region = optarg; break;
 				case 1: bin = atoi(optarg); break;

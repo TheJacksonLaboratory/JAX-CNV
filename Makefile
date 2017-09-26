@@ -22,14 +22,17 @@ SOURCES = main.cpp
 PROGRAM=$(BIN_DIR)/GetKmerCount
 JELLYFISH=$(LIB)/jellyfish-2.2.6/bin/jellyfish
 
-INCLUDE= -I lib/jellyfish-2.2.6/include -I lib/fastaq/include/ -I lib/htslib/
+INCLUDE = -I lib/jellyfish-2.2.6/include -I lib/fastaq/include/ -I lib/htslib/
+LIBRARY = -lz -lcurl -lbz2 $(LIB)/fastaq/obj/*.o $(LIB)/jellyfish-2.2.6/lib/*.o
+
+HTS_LIB:=$(LIB)/htslib/libhts.a
 
 all: $(PROGRAM)
 .PHONY: all
 
-$(PROGRAM): fastaq $(JELLYFISH) $(SOURCES)
+$(PROGRAM): fastaq $(JELLYFISH) $(HTS_LIB) $(SOURCES)
 	@mkdir -p $(BIN_DIR)
-	@$(CXX) $(CXXFLAGS) -o $@ $(SOURCES) $(INCLUDE) $(LIB)/fastaq/obj/*.o $(LIB)/jellyfish-2.2.6/lib/*.o -lz
+	@$(CXX) $(CXXFLAGS) -o $@ $(SOURCES) $(INCLUDE) $(HTS_LIB) $(LIBRARY)
 
 .PHONY: all
 
@@ -49,10 +52,18 @@ fastaq:
 	@echo "- Building in fastaq"
 	@$(MAKE) --no-print-directory --directory=$(LIB)/fastaq
 
-$(JELLYFISH): $(BIN_DIR)
+$(JELLYFISH):
 	@echo "- Building in jellyfish"
 	@cd $(LIB) && tar -zxvf $(LIB)/jellyfish-2.2.6.tar.gz
 	@cd $(LIB)/jellyfish-2.2.6 && ./configure --prefix=$(LIB)/jellyfish-2.2.6
 	$(MAKE) --no-print-directory --directory=$(LIB)/jellyfish-2.2.6
 	@cp $@ $(BIN_DIR)
+
+$(HTS_LIB):
+	@echo "- Building in htslib"
+	@rm -f $(LIB)/htslib/configure
+	@rm -rf $(LIB)/htslib/autom4te.cache
+	@cd $(LIB)/htslib && $(AUTOHEADER) && $(AUTOCONF) && ./configure --disable-lzma --disable-lcurl
+	$(MAKE) --no-print-directory -C $(LIB)/htslib
+	@test -f $(LIB)/htslib/configure.ac~ && mv $(LIB)/htslib/configure.ac~ $(LIB)/htslib/configure.ac
 
