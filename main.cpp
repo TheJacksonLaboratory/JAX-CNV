@@ -16,6 +16,9 @@
 #include "jellyfish/jellyfish.hpp"
 #include "jellyfish/mapped_file.hpp"
 
+// htslib include
+#include "htslib/sam.h"
+
 // Calculate log2 score.
 char CeilLog2 (const uint64_t in)
 {
@@ -92,6 +95,54 @@ void GetKmerCount (const Fastaq::CReference & ref, const Fastaq::SRegion & regio
 		if (!running_length_encoding)
 			std::cout << std::endl;
 	}
+}
+
+void ProcessBam (const char * bam_filename, const Fastaq::SRegion & region) {
+	samFile * bam_reader = sam_open(bam_filename, "r");
+
+	bam_hdr_t *header;
+	header = sam_hdr_read(bam_reader);
+	bam1_t *aln = bam_init1();
+
+
+	if (region.chr.empty()) { // the region is not set
+		while (sam_read1(bam_reader, header, aln) >= 0) {
+			//int32_t pos = aln->core.pos +1; //left most position of alignment in zero based coordianate (+1)
+			char *chr = header->target_name[aln->core.tid] ; //contig name (chromosome)
+			//uint32_t len = aln->core.l_qseq; //length of the read.
+			//uint8_t *q = bam_get_seq(aln); //quality string
+			//uint32_t q2 = aln->core.qual ; //mapping quality
+		}
+	} else { // the region is given.
+		hts_idx_t * idx = sam_index_load(bam_reader,  bam_filename);
+		bool load_index = true;
+		if (idx == NULL) {
+			if (sam_index_build(bam_filename, 0) < 0) { // Try to build bam index
+				std::cerr << "ERROR: The region givin but bam index cannot be built and loaded." << std::endl;
+				load_index = false;
+			} else {
+				idx = sam_index_load(bam_reader,  bam_filename);
+			}
+			
+		}
+
+		if (load_index) {
+			const std::string cat_region = region.chr + std::to_string(region.begin) + '-' +  std::to_string(region.end);
+			hts_itr_t * iter = sam_itr_querys(idx, header, cat_region.c_str());
+			while (iter && sam_itr_next(bam_reader, iter, aln) >= 0) {
+				;
+			}
+	
+		// Clean up
+		hts_itr_destroy(iter);
+		}
+		
+	}
+
+	bam_destroy1(aln);
+	bam_hdr_destroy(header);
+	sam_close(bam_reader);
+
 }
 
 int main (int argc, char** argv) {

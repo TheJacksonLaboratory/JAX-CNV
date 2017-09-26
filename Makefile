@@ -22,7 +22,7 @@ SOURCES = main.cpp
 PROGRAM=$(BIN_DIR)/GetKmerCount
 JELLYFISH=$(LIB)/jellyfish-2.2.6/bin/jellyfish
 
-INCLUDE= -I lib/jellyfish-2.2.6/include -I lib/fastaq/include/
+INCLUDE= -I lib/jellyfish-2.2.6/include -I lib/fastaq/include/ -I lib/htslib/
 
 all: $(PROGRAM)
 .PHONY: all
