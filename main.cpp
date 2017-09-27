@@ -3,6 +3,9 @@
 #include <iostream>
 #include <string>
 
+// Self include
+#include "CountKmer.h"
+
 struct SubCommand {
 	const unsigned int no_sub_commands = 2;
 	const std::string sub_commands[2] = {"CountKmer", "GetCnvSignal"};
@@ -23,15 +26,10 @@ int main (int argc, char** argv) {
 		std::cerr << cml_option.Help(argv[0]) << std::endl;
 		return 1;
 	} else {
-		if ((argv[1] == "help") || (argv[1] == "h") || (argv[1] == "--help") || (argv[1] == "-help") || (argv[1] == "-h")) {
-			std::cerr << cml_option.Help(argv[0]) << std::endl;
-			return 1;
-		} else {
-			for (unsigned int i = 0; i < cml_option.no_sub_commands; ++i) {
-				if (strcmp(argv[1], cml_option.sub_commands[i].c_str()) == 0) {
-					command = cml_option.sub_commands[i];
-					break;
-				}
+		for (unsigned int i = 0; i < cml_option.no_sub_commands; ++i) {
+			if (strcmp(argv[1], cml_option.sub_commands[i].c_str()) == 0) {
+				command = cml_option.sub_commands[i];
+				break;
 			}
 		}
 	}
@@ -41,6 +39,11 @@ int main (int argc, char** argv) {
 		std::cerr << cml_option.Help(argv[0]) << std::endl;
 		return 1;
 	} else {
-		;
+		if (command == "CountKmer") {
+			CountKmer count_kmer(argc - 1, argv + 1);
+			count_kmer.Run();
+		} else if (command == "GetCnvSignal") {
+			std::cout << "COMMING SOON!!!" << std::endl;
+		}
 	}
 }
