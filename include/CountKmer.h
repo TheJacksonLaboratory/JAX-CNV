@@ -1,18 +1,27 @@
-#ifndef _COMMANDLINE_H_
-#define _COMMANDLINE_H_
+#ifndef _COUNTKMER_H_
+#define _COUNTKMER_H_
 
 #include <getopt.h>
 #include <string>
 
-struct SCmdLine {
-	SCmdLine(const int argc, char** const argv){Parse(argc, argv);}
+
+struct CountKmerCml {
+	CountKmerCml(const int argc, char** const argv){Parse(argc, argv);}
+	CountKmerCml(const char * pInput_jfdb, const char * pInput_fasta, const char * pOutput = NULL, 
+			const char * pRegion = NULL, const int input_bin = 1, const bool input_running_length_encoding = false) {
+		input_jfdb = pInput_jfdb;
+		fasta = pInput_fasta;
+		if (pOutput) output = pOutput;
+		if (pRegion) region = pRegion;
+		bin = input_bin;
+		running_length_encoding = input_running_length_encoding;
+	}
 
 	bool help = false;
 
 	// i/o
 	std::string input_jfdb; // -i --input
 	std::string fasta;      // -f --fasta
-	std::string bam;	// -b --bam
 	std::string output;     // -o --output
 
 	// operation parameters
@@ -23,17 +32,17 @@ struct SCmdLine {
 	// command line
 	std::string cmd;
 
-	const char* short_option = "hi:f:b:o:r:";
+	const char* short_option = "hi:f:o:r:";
 
 	// Help list
 	const std::string Help (const char* program) const { return
+		std::string("\n") +
 		std::string("USAGE: ") + program + std::string(" -i <jellyfish_db> -f <FASTA>\n\n") +
 		std::string("	-h --help			Print this help list.\n") +
 		std::string("\n") +
 		std::string("Input & Output:\n") +
 		std::string("	-i --input <jellyfish_db>	Jellyfish created count database.\n") +
 		std::string("	-f --fasta <FASTA>		FASTA for kmer lookup.\n") +
-		std::string("	-b --bam <BAM>			Input BAM.\n") +
 		std::string("	-o --output <FILE>		Output file.\n") +
 		std::string("\n") +
 		std::string("Operations:\n") +
@@ -54,7 +63,7 @@ struct SCmdLine {
 			ok = false;
 		}
 
-		return ok && ((!input_jfdb.empty() && !fasta.empty()) || !bam.empty());
+		return ok && !input_jfdb.empty() && !fasta.empty();
 	}
 
 	bool Parse (const int argc, char** const argv) {
@@ -65,7 +74,6 @@ struct SCmdLine {
 			// i/o
 			{"input", required_argument, NULL, 'i'},
 			{"fasta", required_argument, NULL, 'f'},
-			{"bam", required_argument, NULL, 'b'},
 			{"output", required_argument, NULL, 'o'},
 
 			// operation parameters
@@ -81,7 +89,6 @@ struct SCmdLine {
 				case 'h': help = true; break;
 				case 'i': input_jfdb = optarg; break;
 				case 'f': fasta = optarg; break;
-				case 'b': bam = optarg; break;
 				case 'o': output = optarg; break;
 				case 'r': region = optarg; break;
 				case 1: bin = atoi(optarg); break;
@@ -99,4 +106,26 @@ struct SCmdLine {
 	}
 };
 
+class CountKmer {
+ public:
+	// Constructors
+	CountKmer();
+	CountKmer(int argc, char** argv);
+	CountKmer(const char * pInput_jfdb, const char * pInput_fasta, const char * pOutput = NULL,
+			const char * pRegion = NULL, const int input_bin = 1, const bool input_running_length_encoding = false);
+
+	// The function will report kmer count according to the parameter setting.
+	// Return: 0 is successful.
+	int Run() const;
+
+	// If files are not assinged when declaring the class, you may use the function to assign them.
+	void SetParameters(const CountKmerCml & cml);
+	void SetParameters(const char * pInput_jfdb, const char * pInput_fasta, const char * pOutput = NULL,
+				const char * pRegion = NULL, const int input_bin = 1, const bool input_running_length_encoding = false);
+ private:
+	CountKmerCml cmdline;
+	// Not allow to use copy and assign constructors.
+	CountKmer(const CountKmer&);
+	CountKmer& operator= (const CountKmer&);
+};
 #endif
