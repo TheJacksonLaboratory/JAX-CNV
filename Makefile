@@ -15,14 +15,15 @@ else
 endif
 
 CXXFLAGS:=-std=c++11 $(CFLAGS)
+export $(CXXFLAGS)
 
 SUB_DIRS = $(LIB)/fastaq $(LIB)/jellyfish-2.2.6
-SOURCES = main.cpp
+SOURCES = main.cpp src/CountKmer.cpp
 
 PROGRAM=$(BIN_DIR)/GetKmerCount
 JELLYFISH=$(LIB)/jellyfish-2.2.6/bin/jellyfish
 
-INCLUDE = -I lib/jellyfish-2.2.6/include -I lib/fastaq/include/ -I lib/htslib/
+INCLUDE = -I lib/jellyfish-2.2.6/include -I lib/fastaq/include/ -I lib/htslib/ -I include/
 LIBRARY = -lz -lcurl -lbz2 $(LIB)/fastaq/obj/*.o $(LIB)/jellyfish-2.2.6/lib/*.o
 
 HTS_LIB:=$(LIB)/htslib/libhts.a
