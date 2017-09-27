@@ -84,26 +84,38 @@ void GetKmerCount (const Fastaq::CReference & ref, const Fastaq::SRegion & regio
 					++score_count;
 				} else {
 					if (score != '\0')
-						std::cout << score << "\t" << score_count << std::endl;
+						std::cout << score << "\t" << score_count;
 					score_count = 1;
 					score = CeilLog2(bq.check(m));
 				}
 			} else { // not running_length_encoding
 				score_sum += bq.check(m);
+				++score_count;
 				if (((j-target_begin + 1) % bin) == 0) {
 					if (ascii)
-						std::cout << static_cast<char>(CeilLog2((std::lround(score_sum / static_cast<float>(bin)))));
+						std::cout << static_cast<char>(CeilLog2((std::lround(score_sum / static_cast<float>(score_count)))));
 					else
-						std::cout << score_sum / static_cast<float>(bin) << std::endl;
+						std::cout << score_sum / static_cast<float>(score_count) << std::endl;
 					score_sum = 0;
+					score_count = 0;
 				}
 			}
 		}
 		// Output the last score. Only running_length_encoding mode will use this.
-		if (score_count > 0)
-			std::cout << score << "\t" << score_count << std::endl;
-		if (!running_length_encoding)
+		if (running_length_encoding) {
+			if (score_count > 0)
+				std::cout << score << "\t" << score_count;
 			std::cout << std::endl;
+		} else { // not running_length_encoding
+			if (score_count > 0) {
+				if (ascii)
+					std::cout << static_cast<char>(CeilLog2((std::lround(score_sum / static_cast<float>(score_count)))));
+				else
+					std::cout << score_sum / static_cast<float>(score_count) << std::endl;
+			}
+			if (ascii)
+				std::cout << std::endl;
+		}
 	}
 }
 } // namespace
