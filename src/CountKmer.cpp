@@ -7,9 +7,9 @@
 #include "CountKmer.h"
 
 // FASTAQ include
-#include "fasta.h"
-#include "reference.h"
-#include "region.h"
+#include "fastaq/fasta.h"
+#include "fastaq/reference.h"
+#include "fastaq/region.h"
 
 // Jellyfish include
 #include "jellyfish/file_header.hpp"
