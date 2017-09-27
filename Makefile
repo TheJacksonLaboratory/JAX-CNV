@@ -7,11 +7,11 @@ LIB=$(MASTER_DIR)/lib
 AUTOCONF = autoconf
 AUTOHEADER = autoheader
 
-CFLAGS:=-pthread
+CFLAGS:=-pthread -Wall
 ifeq ($(mode), debug)
-	CFLAGS:=$(CFLAGS) -O0 -g
+	CFLAGS:=$(CFLAGS) -O0 -g -DDEBUG
 else
-	CFLAGS:=$(CFLAGS) -mtune=native -O3 -Wall
+	CFLAGS:=$(CFLAGS) -O3
 endif
 
 CXXFLAGS:=-std=c++11 $(CFLAGS)

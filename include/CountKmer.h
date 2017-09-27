@@ -8,13 +8,15 @@
 struct CountKmerCml {
 	CountKmerCml(const int argc, char** const argv){Parse(argc, argv);}
 	CountKmerCml(const char * pInput_jfdb, const char * pInput_fasta, const char * pOutput = NULL, 
-			const char * pRegion = NULL, const int input_bin = 1, const bool input_running_length_encoding = false) {
+			const char * pRegion = NULL, const int input_bin = 1, const bool input_ascii = false,
+			const bool input_rle = false) {
 		input_jfdb = pInput_jfdb;
 		fasta = pInput_fasta;
 		if (pOutput) output = pOutput;
 		if (pRegion) region = pRegion;
 		bin = input_bin;
-		running_length_encoding = input_running_length_encoding;
+		ascii = input_ascii;
+		rle = input_rle;
 	}
 
 	bool help = false;
@@ -27,7 +29,8 @@ struct CountKmerCml {
 	// operation parameters
 	std::string region;     // -r --region
 	int bin = 1;
-	bool running_length_encoding = false; // --rle
+	bool ascii = false;
+	bool rle = false; // --rle // running_length_encoding
 	
 	// command line
 	std::string cmd;
@@ -48,7 +51,8 @@ struct CountKmerCml {
 		std::string("Operations:\n") +
 		std::string("	-r --region chr:begin-end	Specify a target region.\n") +
 		std::string("	--bin <INT>			Report a result for each # bp. [1]\n") +
-		std::string("	--rle				Ouput by running length encoding.\n");
+		std::string("	--ascii				Report count in ASCII: (log2(#) + 1) + 33.\n") +
+		std::string("	--rle				Ouput by running length encoding. --ascii is on.\n");
 	}
 
 	// Check the required arguments.
@@ -58,7 +62,7 @@ struct CountKmerCml {
 			std::cerr << "ERROR: --bin <INT> should not smaller than 1." << std::endl;
 			ok = false;
 		}
-		if (bin > 1 && running_length_encoding) {
+		if (bin > 1 && rle) {
 			std::cerr << "ERROR: --rle only work for --bin 1." << std::endl;
 			ok = false;
 		}
@@ -79,7 +83,8 @@ struct CountKmerCml {
 			// operation parameters
 			{"region", required_argument, NULL, 'r'},
 			{"bin", required_argument, NULL, 1},
-			{"rle", no_argument, NULL, 2},
+			{"ascii", no_argument, NULL, 2},
+			{"rle", no_argument, NULL, 3},
 			{0,0,0,0}
 		};
 		int option_index = 0;
@@ -92,7 +97,8 @@ struct CountKmerCml {
 				case 'o': output = optarg; break;
 				case 'r': region = optarg; break;
 				case 1: bin = atoi(optarg); break;
-				case 2: running_length_encoding = true; break;
+				case 2: ascii = true; break;
+				case 3: rle = true; ascii = true; break;
 				default: std::cerr << "WARNING: Unkonw parameter: " << long_option[option_index].name << std::endl; break;
 			}
 		}
@@ -112,7 +118,7 @@ class CountKmer {
 	CountKmer();
 	CountKmer(int argc, char** argv);
 	CountKmer(const char * pInput_jfdb, const char * pInput_fasta, const char * pOutput = NULL,
-			const char * pRegion = NULL, const int input_bin = 1, const bool input_running_length_encoding = false);
+			const char * pRegion = NULL, const int input_bin = 1, const bool input_ascii = false, const bool input_rle = false);
 
 	// The function will report kmer count according to the parameter setting.
 	// Return: 0 is successful.
@@ -121,7 +127,7 @@ class CountKmer {
 	// If files are not assinged when declaring the class, you may use the function to assign them.
 	void SetParameters(const CountKmerCml & cml);
 	void SetParameters(const char * pInput_jfdb, const char * pInput_fasta, const char * pOutput = NULL,
-				const char * pRegion = NULL, const int input_bin = 1, const bool input_running_length_encoding = false);
+				const char * pRegion = NULL, const int input_bin = 1, const bool input_ascii = false, const bool input_rle = false);
  private:
 	CountKmerCml cmdline;
 	// Not allow to use copy and assign constructors.
