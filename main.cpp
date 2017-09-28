@@ -5,6 +5,7 @@
 
 // Self include
 #include "CountKmer.h"
+#include "GetCnvSignal.h"
 
 struct SubCommand {
 	const unsigned int no_sub_commands = 2;
@@ -28,6 +29,7 @@ int main (int argc, char** argv) {
 	} else {
 		for (unsigned int i = 0; i < cml_option.no_sub_commands; ++i) {
 			if (strcmp(argv[1], cml_option.sub_commands[i].c_str()) == 0) {
+				// Get the valid subcommand
 				command = cml_option.sub_commands[i];
 				break;
 			}
@@ -38,12 +40,15 @@ int main (int argc, char** argv) {
 		std::cerr << "ERROR: The given command (" << argv[1] << ") is not valid." << std::endl;
 		std::cerr << cml_option.Help(argv[0]) << std::endl;
 		return 1;
-	} else {
+	} else { // Get the valid subcommand
 		if (command == "CountKmer") {
 			CountKmer count_kmer(argc - 1, argv + 1);
 			count_kmer.Run();
 		} else if (command == "GetCnvSignal") {
-			std::cout << "COMMING SOON!!!" << std::endl;
+			GetCnvSignal get_cnv_signal(argc - 1, argv + 1);
+			get_cnv_signal.Run();
 		}
 	}
+
+	return 0;
 }

@@ -18,7 +18,7 @@ CXXFLAGS:=-std=c++11 $(CFLAGS)
 export $(CXXFLAGS)
 
 SUB_DIRS = $(LIB)/fastaq $(LIB)/jellyfish-2.2.6
-SOURCES = main.cpp src/CountKmer.cpp
+SOURCES = main.cpp src/CountKmer.cpp src/GetCnvSignal.cpp
 
 PROGRAM=$(BIN_DIR)/GetKmerCount
 JELLYFISH=$(LIB)/jellyfish-2.2.6/bin/jellyfish
