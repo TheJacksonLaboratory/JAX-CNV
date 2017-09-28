@@ -5,19 +5,9 @@
 #include <string>
 
 
-struct CountKmerCml {
-	CountKmerCml(const int argc, char** const argv){Parse(argc, argv);}
-	CountKmerCml(const char * pInput_jfdb, const char * pInput_fasta, const char * pOutput = NULL, 
-			const char * pRegion = NULL, const int input_bin = 1, const bool input_ascii = false,
-			const bool input_rle = false) {
-		input_jfdb = pInput_jfdb;
-		fasta = pInput_fasta;
-		if (pOutput) output = pOutput;
-		if (pRegion) region = pRegion;
-		bin = input_bin;
-		ascii = input_ascii;
-		rle = input_rle;
-	}
+struct SCountKmerCml {
+	SCountKmerCml(){};
+	SCountKmerCml(const int argc, char** const argv){Parse(argc, argv);}
 
 	bool help = false;
 
@@ -125,11 +115,11 @@ class CountKmer {
 	int Run() const;
 
 	// If files are not assinged when declaring the class, you may use the function to assign them.
-	void SetParameters(const CountKmerCml & cml);
+	void SetParameters(const SCountKmerCml & cml);
 	void SetParameters(const char * pInput_jfdb, const char * pInput_fasta, const char * pOutput = NULL,
 				const char * pRegion = NULL, const int input_bin = 1, const bool input_ascii = false, const bool input_rle = false);
  private:
-	CountKmerCml cmdline;
+	SCountKmerCml cmdline;
 	// Not allow to use copy and assign constructors.
 	CountKmer(const CountKmer&);
 	CountKmer& operator= (const CountKmer&);

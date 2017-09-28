@@ -52,30 +52,24 @@ void GetKmerCount (const Fastaq::CReference & ref, const Fastaq::SRegion & regio
 	std::vector<std::string> ref_names;
 	ref.GetReferenceNames(&ref_names);
 
-#ifdef DEBUG
-	std::cerr << "GetKmerCount:" << std::endl;
-	if (!region.chr.empty()) {
-		std::cerr << "The target region is " << region.chr << ":" << region.begin;
-		if (region.end > region.begin)
-			std::cerr << "-" << region.end;
-		std::cerr << "." << std::endl;
-	}
-#endif
-
 	// If a region is given, there will be only one reference in the vector.
 	for (unsigned int i = 0; i < ref_names.size(); i++) {
-		const unsigned int target_len = region.end > 0 
+		const unsigned int target_end = (!region.chr.empty() && region.end > 0) // Use region.end when we set region
 						? std::min(ref.GetReferenceLength(ref_names[i].c_str()), region.end) 
 						: ref.GetReferenceLength(ref_names[i].c_str());
-		const unsigned int target_begin = std::max(static_cast<unsigned int>(0), region.begin);
+		const unsigned int target_begin = !region.chr.empty() ? std::max(static_cast<unsigned int>(0), region.begin) : 0;
 
+#ifdef DEBUG
+	std::cerr << "GetKmerCount:" << std::endl;
+	std::cerr << "\tProcessing region " << ref_names[i] << ":" << target_begin << "-" << target_end << std::endl;
+#endif
 		// Cannot proceed when target_len < kmer_size
-		if (target_len < kmer_size) break;
+		if ((target_end - target_begin) < kmer_size) break;
 
 		unsigned int score_count = 0;
 		unsigned int score_sum = 0;
 		char score = '\0';
-		for (unsigned int j = target_begin; j < target_len - kmer_size; ++j) {
+		for (unsigned int j = target_begin; j < target_end - kmer_size; ++j) {
 			jellyfish::mer_dna m;
 			m = ref.GetSubString(ref_names[i], j, kmer_size).c_str();
 			if (header.canonical()) m.canonicalize();
@@ -197,17 +191,19 @@ int CountKmer::Run () const {
 
 }
 
-CountKmer::CountKmer(int argc, char** argv) : cmdline(argc, argv){
+CountKmer::CountKmer(int argc, char** argv)
+	: cmdline(argc, argv)
+{
 }
 
 CountKmer::CountKmer(
 	const char * pInput_jfdb, const char * pInput_fasta, const char * pOutput,
 	const char * pRegion, const int input_bin, const bool input_ascii, const bool input_rle)
-	: cmdline(pInput_jfdb, pInput_fasta, pOutput, pRegion, input_bin, input_ascii, input_rle)
 {
+	SetParameters(pInput_jfdb, pInput_fasta, pOutput, pRegion, input_bin, input_ascii, input_rle);
 }
 
-void CountKmer::SetParameters(const CountKmerCml & cml) {
+void CountKmer::SetParameters(const SCountKmerCml & cml) {
 	cmdline = cml;
 }
 
