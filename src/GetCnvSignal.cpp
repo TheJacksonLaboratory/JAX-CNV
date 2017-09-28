@@ -146,6 +146,17 @@ void ProcessBam (const char * bam_filename, const Fastaq::SRegion & region, cons
 	bam_hdr_destroy(header);
 	sam_close(bam_reader);
 }
+
+void PrintResults(std::stringstream & bam_signal_out, std::stringstream & count_kmer_out) {
+	while (!bam_signal_out.eof() || !count_kmer_out.eof()) {
+		std::string tmp;
+		std::getline(bam_signal_out, tmp);
+		std::cout << tmp << "\t";
+		std::getline(count_kmer_out, tmp);
+		std::cout << tmp;
+		std::cout << std::endl;
+	}
+}
 } // namespace
 
 GetCnvSignal::GetCnvSignal(int argc, char** argv)
@@ -159,12 +170,17 @@ int GetCnvSignal::Run () const {
 		return 1;
 	}
 
+	std::streambuf * coutbuf = std::cout.rdbuf(); //save old buf
+	std::stringstream count_kmer_out;
 	// Perform CountKmer
 	if (!cmdline.input_jfdb.empty() && !cmdline.fasta.empty()) {
+		std::cout.rdbuf(count_kmer_out.rdbuf()); //redirect std::cout to count_kmer_out
 		// rle = false
-		CountKmer count_kmer(cmdline.input_jfdb.c_str(), cmdline.fasta.c_str(), cmdline.output.c_str(), 
+		// output is controlled by count_kmer_out
+		CountKmer count_kmer(cmdline.input_jfdb.c_str(), cmdline.fasta.c_str(), NULL, 
 					cmdline.region.c_str(), cmdline.bin, cmdline.ascii, false);
 		count_kmer.Run();
+		std::cout.rdbuf(coutbuf); //reset to standard output again
 	}
 
 	// Parse region.
@@ -176,20 +192,23 @@ int GetCnvSignal::Run () const {
 		}
 	}
 
+	coutbuf = std::cout.rdbuf(); //save old buf
+	std::stringstream bam_signal_out;
+	std::cout.rdbuf(bam_signal_out.rdbuf()); //redirect std::cout to bam_signal_out
+	ProcessBam(cmdline.bam.c_str(), region, cmdline.bin);
+	std::cout.rdbuf(coutbuf); //reset to standard output again
+
 	// Open output if given.
-	std::ofstream ofs;
-	std::streambuf *coutbuf = std::cout.rdbuf(); //save old buf
 	if (!cmdline.output.empty()) {
+		coutbuf = std::cout.rdbuf(); //save old buf
+		std::ofstream ofs;
 		ofs.open(cmdline.output, std::ofstream::out | std::ofstream::app);
 		std::cout.rdbuf(ofs.rdbuf()); //redirect std::cout to file;
-	}
-
-	ProcessBam(cmdline.bam.c_str(), region, cmdline.bin);
-
-	// Clean up
-	if (!cmdline.output.empty()) {
+		PrintResults(bam_signal_out, count_kmer_out);
 		std::cout.rdbuf(coutbuf); //reset to standard output again
 		ofs.close();
+	} else {
+		PrintResults(bam_signal_out, count_kmer_out);
 	}
 
 	return 0;

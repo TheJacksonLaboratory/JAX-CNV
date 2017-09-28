@@ -55,7 +55,7 @@ void GetKmerCount (const Fastaq::CReference & ref, const Fastaq::SRegion & regio
 	// If a region is given, there will be only one reference in the vector.
 	for (unsigned int i = 0; i < ref_names.size(); i++) {
 		const unsigned int target_end = (!region.chr.empty() && region.end > 0) // Use region.end when we set region
-						? std::min(ref.GetReferenceLength(ref_names[i].c_str()), region.end) 
+						? std::min(ref.GetReferenceLength(ref_names[i].c_str()), region.end + kmer_size) 
 						: ref.GetReferenceLength(ref_names[i].c_str());
 		const unsigned int target_begin = !region.chr.empty() ? std::max(static_cast<unsigned int>(0), region.begin) : 0;
 
