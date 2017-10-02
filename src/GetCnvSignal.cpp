@@ -261,12 +261,14 @@ void ProcessBam (const char * bam_filename, const Fastaq::SRegion & region, cons
 	bam_data.Clean();
 }
 
-void PrintResults(std::stringstream & bam_signal_out, std::stringstream & count_kmer_out) {
-	while (!bam_signal_out.eof() && !count_kmer_out.eof()) {
+void PrintResults(std::stringstream & bam_signal_out, std::stringstream & count_kmer_out, const bool have_count_kmer_out) {
+	std::cout << "#POS\tREADS\tPAIRED\tPROPER_PAIRS\tINPROPER_PAIRS\tMATE_UNMAPPED\tISIZE\tSOFTCLIPS\tREAD_DEPTH"
+			<< (!have_count_kmer_out ? "\n" : "\tKMER_COUNT\n");
+	while (!bam_signal_out.eof()) { // The bam_signal_out is the major player here.
 		std::string tmp;
 		if (std::getline(bam_signal_out, tmp).eof()) break;
 		std::cout << tmp;
-		if (!std::getline(count_kmer_out, tmp).eof()) {
+		if (have_count_kmer_out && !std::getline(count_kmer_out, tmp).eof()) {
 			std::cout << "\t" << tmp;
 		}
 		std::cout << std::endl;
@@ -319,11 +321,11 @@ int GetCnvSignal::Run () const {
 		std::ofstream ofs;
 		ofs.open(cmdline.output, std::ofstream::out | std::ofstream::app);
 		std::cout.rdbuf(ofs.rdbuf()); //redirect std::cout to file;
-		PrintResults(bam_signal_out, count_kmer_out);
+		PrintResults(bam_signal_out, count_kmer_out, (!cmdline.input_jfdb.empty() && !cmdline.fasta.empty()));
 		std::cout.rdbuf(coutbuf); //reset to standard output again
 		ofs.close();
 	} else {
-		PrintResults(bam_signal_out, count_kmer_out);
+		PrintResults(bam_signal_out, count_kmer_out, (!cmdline.input_jfdb.empty() && !cmdline.fasta.empty()));
 	}
 	return 0;
 }
