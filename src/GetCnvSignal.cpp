@@ -65,10 +65,10 @@ void PrintCleanBamData (SBamData & bam_data, const int & max_pos) {
 	if (bam_data.total_read == 0) {
 		std::cout << "0\t0\t0\t0\t0\t0\t0\t";
 	} else {
-		std::cout << bam_data.total_read << "\t" << bam_data.paired_reads << "\t"
-				<< bam_data.proper_pairs / static_cast<double>(bam_data.total_read) << "\t" // proper pairs
-				<< bam_data.inproper_pairs / static_cast<double>(bam_data.total_read) << "\t" // inproper pairs
-				<< bam_data.mate_unmapped / static_cast<double>(bam_data.total_read) << "\t"; // mate unmapped
+		std::cout << bam_data.total_read << "\t" << bam_data.paired_reads << "\t" // total reads and total paired-end reads
+				<< bam_data.proper_pairs << "\t" // proper pairs
+				<< bam_data.inproper_pairs << "\t" // inproper pairs
+				<< bam_data.mate_unmapped << "\t"; // mate unmapped
 	
 		// Isize
 		uint64_t sum = 0;
