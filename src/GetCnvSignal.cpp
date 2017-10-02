@@ -262,12 +262,13 @@ void ProcessBam (const char * bam_filename, const Fastaq::SRegion & region, cons
 }
 
 void PrintResults(std::stringstream & bam_signal_out, std::stringstream & count_kmer_out) {
-	while (!bam_signal_out.eof() || !count_kmer_out.eof()) {
+	while (!bam_signal_out.eof() && !count_kmer_out.eof()) {
 		std::string tmp;
-		std::getline(bam_signal_out, tmp);
-		std::cout << tmp << std::endl;
-		std::getline(count_kmer_out, tmp);
+		if (std::getline(bam_signal_out, tmp).eof()) break;
 		std::cout << tmp;
+		if (!std::getline(count_kmer_out, tmp).eof()) {
+			std::cout << "\t" << tmp;
+		}
 		std::cout << std::endl;
 	}
 }
@@ -306,14 +307,13 @@ int GetCnvSignal::Run () const {
 		}
 	}
 
-	//coutbuf = std::cout.rdbuf(); //save old buf
-	//std::stringstream bam_signal_out;
-	//std::cout.rdbuf(bam_signal_out.rdbuf()); //redirect std::cout to bam_signal_out
+	coutbuf = std::cout.rdbuf(); //save old buf
+	std::stringstream bam_signal_out;
+	std::cout.rdbuf(bam_signal_out.rdbuf()); //redirect std::cout to bam_signal_out
 	ProcessBam(cmdline.bam.c_str(), region, cmdline.bin);
-	//std::cout.rdbuf(coutbuf); //reset to standard output again
+	std::cout.rdbuf(coutbuf); //reset to standard output again
 
 	// Open output if given.
-/*
 	if (!cmdline.output.empty()) {
 		coutbuf = std::cout.rdbuf(); //save old buf
 		std::ofstream ofs;
@@ -325,6 +325,5 @@ int GetCnvSignal::Run () const {
 	} else {
 		PrintResults(bam_signal_out, count_kmer_out);
 	}
-*/
 	return 0;
 }
