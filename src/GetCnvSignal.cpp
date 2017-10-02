@@ -2,6 +2,9 @@
 #include <iostream>
 #include <fstream>
 #include <vector>
+#include <list>
+#include <limits>
+#include <cstdint>
 
 // Self include
 #include "CountKmer.h"
@@ -23,53 +26,175 @@
 
 namespace {
 struct SBamData {
+	struct SReadDepth {
+		SReadDepth(const int & i_pos, const unsigned int & i_count) : pos(i_pos), count(i_count){}
+		int pos = 0;
+		unsigned int count = 0;
+	};
 	unsigned int total_read = 0;
+	unsigned int paired_reads = 0;
 	unsigned int proper_pairs = 0;
 	unsigned int inproper_pairs = 0;
 	unsigned int mate_unmapped = 0;
-	std::vector<unsigned int> poss;
-	std::vector<unsigned int> rds;
-	std::vector<unsigned int> isizes;
+	std::list<unsigned int> isizes;
+	std::list<unsigned int> softclips;
+	std::list<unsigned int> mismatches;
+	std::list <SReadDepth> read_depth;
 
 	void Clean() {
 		total_read = 0;
+		paired_reads = 0;
 		proper_pairs = 0;
 		inproper_pairs = 0;
 		mate_unmapped = 0;
-		poss.clear();
-		rds.clear();
 		isizes.clear();
+		softclips.clear();
+		mismatches.clear();
+		read_depth.clear();
 	}
 };
 
-void PrintBamData (const SBamData & bam_data) {
+void PrintCleanBamData (SBamData & bam_data, const int & max_pos) {
+	std::cout << max_pos << "\t";
 	if (bam_data.total_read == 0) {
-		std::cout << "0\t0\t0\t0" << std::endl;
+		std::cout << "0\t0\t0\t0\t0\t0\t0\t";
 	} else {
-		std::cout << bam_data.proper_pairs / static_cast<double>(bam_data.total_read) << "\t"
-				<< bam_data.inproper_pairs / static_cast<double>(bam_data.total_read) << "\t"
-				<< bam_data.mate_unmapped / static_cast<double>(bam_data.total_read) << "\t";
+		std::cout << bam_data.total_read << "\t" << bam_data.paired_reads << "\t"
+				<< bam_data.proper_pairs / static_cast<double>(bam_data.total_read) << "\t" // proper pairs
+				<< bam_data.inproper_pairs / static_cast<double>(bam_data.total_read) << "\t" // inproper pairs
+				<< bam_data.mate_unmapped / static_cast<double>(bam_data.total_read) << "\t"; // mate unmapped
 	
+		// Isize
 		uint64_t sum = 0;
-		for (unsigned int i = 0; i < bam_data.isizes.size(); ++i)
-			sum += bam_data.isizes[i];
-		std::cout << sum / static_cast<double>(bam_data.total_read) << std::endl;
+		for (std::list<unsigned int>::const_iterator ite = bam_data.isizes.begin(); ite != bam_data.isizes.end(); ++ite)
+			sum += *ite;
+		std::cout << sum / static_cast<double>(bam_data.total_read) << "\t";
+
+		// Softclip
+		sum = 0;
+		for (std::list<unsigned int>::const_iterator ite = bam_data.softclips.begin(); ite != bam_data.softclips.end(); ++ite)
+			sum += *ite;
+		std::cout << sum / static_cast<double>(bam_data.total_read) << "\t";
 	}
+	// Read depth
+	uint64_t sum = 0;
+	unsigned int pos_count = 0;
+/*
+if (bam_data.total_read == 0) {
+	std::cerr << "max_pos: " << max_pos << std::endl;
+	for (std::list<SBamData::SReadDepth>::const_iterator ite = bam_data.read_depth.begin(); ite != bam_data.read_depth.end(); ++ite) {
+		std::cerr << ite->pos << "\t" << ite->count << std::endl;
+	}
+	std::cerr << "DONE" << std::endl;
+}
+*/
+	while (!bam_data.read_depth.empty() && bam_data.read_depth.front().pos <= max_pos) {
+		++pos_count;
+		sum += bam_data.read_depth.front().count;
+		bam_data.read_depth.pop_front();
+	}
+		
+	std::cout << (pos_count == 0 ? 0 : sum / static_cast<double>(pos_count)) << std::endl;
+	
+
+	// Clean
+	//  bam_data.read_depth has been cleaned in the while loop.
+	bam_data.total_read = 0;
+	bam_data.paired_reads = 0;
+	bam_data.proper_pairs = 0;
+	bam_data.inproper_pairs = 0;
+	bam_data.mate_unmapped = 0;
+	bam_data.isizes.clear();
+	bam_data.softclips.clear();
+	bam_data.mismatches.clear();
 };
+
+inline std::list<SBamData::SReadDepth>::iterator GetRdListIte (std::list<SBamData::SReadDepth> & read_depth, const int & pos) {
+	for (std::list<SBamData::SReadDepth>::iterator ite = read_depth.begin();
+		ite != read_depth.end(); ++ite) {
+		if (pos == ite->pos)
+			return ite;
+	}
+
+	// The pos is larger than read_depth.end()
+	SBamData::SReadDepth tmp_data((read_depth.empty() ? pos : read_depth.back().pos + 1), 0); 
+	while (tmp_data.pos <= pos) {
+		read_depth.push_back(tmp_data);
+		++tmp_data.pos;
+	}
+
+	// Return the last ite.
+	std::list<SBamData::SReadDepth>::iterator ite = read_depth.begin();
+	std::advance(ite, read_depth.size() - 1); //ite is set to last element
+	return ite;
+}
 
 void ProcessAlignment (SBamData & bam_data, const bam1_t * aln) {
-	if (aln->core.flag & BAM_FUNMAP) return;
+	// The alignment is not mapped.
+	if (aln->core.flag & BAM_FUNMAP || aln->core.flag & BAM_FSECONDARY || aln->core.flag & BAM_FQCFAIL 
+		|| aln->core.flag & BAM_FDUP || aln->core.flag & BAM_FSUPPLEMENTARY) 
+		return;
+
+/*
+std::cerr << "aln pos: " << aln->core.pos << "\t";
+for (uint32_t i = 0; i < aln->core.n_cigar; ++i) {
+	std::cerr << bam_cigar_oplen(*(bam_get_cigar(aln) + i)) << "\t" << bam_cigar_op(*(bam_get_cigar(aln) + i)) << "\t";
+}
+std::cerr << std::endl;
+
+//int32_t pos = aln->core.pos +1; //left most position of alignment in zero based coordianate (+1)
+//char *chr = header->target_name[aln->core.tid] ; //contig name (chromosome)
+//uint32_t len = aln->core.l_qseq; //length of the read.
+//uint8_t *q = bam_get_seq(aln); //quality string
+//uint32_t q2 = aln->core.qual ; //mapping quality
+*/
 	++bam_data.total_read;
+	// Paired-end read
+	if (aln->core.flag & BAM_FPAIRED) ++bam_data.paired_reads;
+	// Proper pairs
 	if (aln->core.flag & BAM_FPROPER_PAIR) ++bam_data.proper_pairs;
 	else ++bam_data.inproper_pairs;
+	// Is mate unmapped?
+	// If it is, isize will be collected.
 	if (aln->core.flag & BAM_FMUNMAP) ++bam_data.mate_unmapped;
 	else bam_data.isizes.push_back(aln->core.isize < 0 ? -aln->core.isize : aln->core.isize);
+	// Softclip
+	const uint32_t* pCigar = bam_get_cigar(aln);
+	uint32_t sc = 0;
+	if (bam_cigar_op(*pCigar) == BAM_CSOFT_CLIP)
+		sc += bam_cigar_oplen(*pCigar);
+	// Check the last CIGAR
+	if (bam_cigar_op(*(pCigar + aln->core.n_cigar - 1)) == BAM_CSOFT_CLIP)
+		sc += bam_cigar_oplen(*(pCigar + aln->core.n_cigar - 1));
+	bam_data.softclips.push_back(sc);
 
-	//int32_t pos = aln->core.pos +1; //left most position of alignment in zero based coordianate (+1)
-	//char *chr = header->target_name[aln->core.tid] ; //contig name (chromosome)
-	//uint32_t len = aln->core.l_qseq; //length of the read.
-	//uint8_t *q = bam_get_seq(aln); //quality string
-	//uint32_t q2 = aln->core.qual ; //mapping quality
+	// Read depth
+	if (!bam_data.read_depth.empty() && aln->core.pos < bam_data.read_depth.front().pos) {
+		std::cerr << "ERROR: The pos of " << bam_get_qname(aln) << " " << aln->core.pos << " is inconsistent." << std::endl
+				<< "\t\tThe smallest pos of the current bin is " << bam_data.read_depth.front().pos << std::endl;
+	} else {
+		int32_t pos = aln->core.pos;
+		std::list<SBamData::SReadDepth>::iterator ite = GetRdListIte(bam_data.read_depth, pos);
+		for (uint32_t i = 0; i < aln->core.n_cigar; ++i) {
+			const uint32_t op = bam_cigar_op(*(pCigar + i));
+			if (op == BAM_CMATCH || op == BAM_CEQUAL || op == BAM_CDIFF || op == BAM_CDEL || op == BAM_CREF_SKIP) {
+				for (uint32_t j = 0; j < bam_cigar_oplen(*(pCigar + i)); ++j) {
+					if (op == BAM_CMATCH || op == BAM_CEQUAL || op == BAM_CDIFF) ++(ite->count);
+					++ite;
+					++pos;
+					if (ite == bam_data.read_depth.end()) {
+						SBamData::SReadDepth tmp_data(pos, 0);
+						bam_data.read_depth.push_back(tmp_data);
+						ite =  bam_data.read_depth.begin();
+						std::advance(ite, bam_data.read_depth.size() - 1); //iter is set to last element
+					}
+				}
+
+
+			}
+		}
+	}
+
 }
 
 void ProcessBam (const char * bam_filename, const Fastaq::SRegion & region, const int & bin) {
@@ -92,12 +217,8 @@ void ProcessBam (const char * bam_filename, const Fastaq::SRegion & region, cons
 			}
 			const int cur_bin = aln->core.pos / bin;
 			if (cur_bin != pre_bin) {
-				for (int i = pre_bin; i < cur_bin - 1; ++i) {
-					SBamData dummy_data;
-					PrintBamData(dummy_data);
-				}
-				PrintBamData(bam_data);
-				bam_data.Clean();
+				for (int i = pre_bin; i < cur_bin; ++i)
+					PrintCleanBamData(bam_data, (i + 1) * bin - 1); // (i + 1) * bin - 1 for giving the max pos of the bin.
 				pre_bin = cur_bin;
 			}
 			ProcessAlignment(bam_data, aln);
@@ -117,41 +238,39 @@ void ProcessBam (const char * bam_filename, const Fastaq::SRegion & region, cons
 
 		if (load_index) {
 			const std::string cat_region = region.chr + ":" + std::to_string(region.begin) + '-' +  std::to_string(region.end);
-			hts_itr_t * iter = sam_itr_querys(idx, header, cat_region.c_str());
+			hts_itr_t * ite = sam_itr_querys(idx, header, cat_region.c_str());
 			int pre_bin = region.begin / bin;
-			while (iter && sam_itr_next(bam_reader, iter, aln) >= 0) {
+			while (ite && sam_itr_next(bam_reader, ite, aln) >= 0) {
 				const int cur_bin = aln->core.pos / bin;
+				// If the cur_bin is not the same as pre_bin, we clean up the pre_bin.
 				if ((cur_bin > pre_bin) && (cur_bin != pre_bin)) {
-					for (int i = pre_bin; i < cur_bin - 1; ++i) {
-						SBamData dummy_data;
-						PrintBamData(dummy_data);
-					}
-					PrintBamData(bam_data);
-					bam_data.Clean();
+					for (int i = pre_bin; i < cur_bin; ++i)
+						PrintCleanBamData(bam_data, (i + 1) * bin - 1); // (i + 1) * bin - 1 for giving the max pos of the bin.
 					pre_bin = cur_bin;
 				}
 				ProcessAlignment(bam_data, aln);
 			}
 	
 			// Clean up
-			hts_itr_destroy(iter);
+			hts_itr_destroy(ite);
 		}
 		
 	}
 
-	PrintBamData(bam_data);
+	PrintCleanBamData(bam_data, std::numeric_limits<std::int32_t>::max());
 
 	// Clean up
 	bam_destroy1(aln);
 	bam_hdr_destroy(header);
 	sam_close(bam_reader);
+	bam_data.Clean();
 }
 
 void PrintResults(std::stringstream & bam_signal_out, std::stringstream & count_kmer_out) {
 	while (!bam_signal_out.eof() || !count_kmer_out.eof()) {
 		std::string tmp;
 		std::getline(bam_signal_out, tmp);
-		std::cout << tmp << "\t";
+		std::cout << tmp << std::endl;
 		std::getline(count_kmer_out, tmp);
 		std::cout << tmp;
 		std::cout << std::endl;
@@ -192,13 +311,14 @@ int GetCnvSignal::Run () const {
 		}
 	}
 
-	coutbuf = std::cout.rdbuf(); //save old buf
-	std::stringstream bam_signal_out;
-	std::cout.rdbuf(bam_signal_out.rdbuf()); //redirect std::cout to bam_signal_out
+	//coutbuf = std::cout.rdbuf(); //save old buf
+	//std::stringstream bam_signal_out;
+	//std::cout.rdbuf(bam_signal_out.rdbuf()); //redirect std::cout to bam_signal_out
 	ProcessBam(cmdline.bam.c_str(), region, cmdline.bin);
-	std::cout.rdbuf(coutbuf); //reset to standard output again
+	//std::cout.rdbuf(coutbuf); //reset to standard output again
 
 	// Open output if given.
+/*
 	if (!cmdline.output.empty()) {
 		coutbuf = std::cout.rdbuf(); //save old buf
 		std::ofstream ofs;
@@ -210,6 +330,6 @@ int GetCnvSignal::Run () const {
 	} else {
 		PrintResults(bam_signal_out, count_kmer_out);
 	}
-
+*/
 	return 0;
 }
