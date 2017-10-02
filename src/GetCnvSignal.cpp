@@ -55,7 +55,13 @@ struct SBamData {
 };
 
 void PrintCleanBamData (SBamData & bam_data, const int & max_pos) {
-	std::cout << max_pos << "\t";
+	// If the max_pos means the last element.
+	std::cout << (!bam_data.read_depth.empty() && max_pos == std::numeric_limits<std::int32_t>::max()
+		? bam_data.read_depth.back().pos
+		: max_pos)
+		<< "\t";
+
+
 	if (bam_data.total_read == 0) {
 		std::cout << "0\t0\t0\t0\t0\t0\t0\t";
 	} else {
@@ -79,15 +85,6 @@ void PrintCleanBamData (SBamData & bam_data, const int & max_pos) {
 	// Read depth
 	uint64_t sum = 0;
 	unsigned int pos_count = 0;
-/*
-if (bam_data.total_read == 0) {
-	std::cerr << "max_pos: " << max_pos << std::endl;
-	for (std::list<SBamData::SReadDepth>::const_iterator ite = bam_data.read_depth.begin(); ite != bam_data.read_depth.end(); ++ite) {
-		std::cerr << ite->pos << "\t" << ite->count << std::endl;
-	}
-	std::cerr << "DONE" << std::endl;
-}
-*/
 	while (!bam_data.read_depth.empty() && bam_data.read_depth.front().pos <= max_pos) {
 		++pos_count;
 		sum += bam_data.read_depth.front().count;
@@ -182,17 +179,15 @@ std::cerr << std::endl;
 					if (op == BAM_CMATCH || op == BAM_CEQUAL || op == BAM_CDIFF) ++(ite->count);
 					++ite;
 					++pos;
-					if (ite == bam_data.read_depth.end()) {
+					if (ite == bam_data.read_depth.end()) { // Need to add new element in the list.
 						SBamData::SReadDepth tmp_data(pos, 0);
 						bam_data.read_depth.push_back(tmp_data);
 						ite =  bam_data.read_depth.begin();
 						std::advance(ite, bam_data.read_depth.size() - 1); //iter is set to last element
 					}
-				}
-
-
-			}
-		}
+				} // end of for loop
+			} // end of if
+		} // end of for loop
 	}
 
 }
@@ -257,7 +252,7 @@ void ProcessBam (const char * bam_filename, const Fastaq::SRegion & region, cons
 		
 	}
 
-	PrintCleanBamData(bam_data, std::numeric_limits<std::int32_t>::max());
+	//PrintCleanBamData(bam_data, std::numeric_limits<std::int32_t>::max());
 
 	// Clean up
 	bam_destroy1(aln);
