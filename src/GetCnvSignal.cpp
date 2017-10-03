@@ -319,7 +319,7 @@ int GetCnvSignal::Run () const {
 	if (!cmdline.output.empty()) {
 		coutbuf = std::cout.rdbuf(); //save old buf
 		std::ofstream ofs;
-		ofs.open(cmdline.output, std::ofstream::out | std::ofstream::app);
+		ofs.open(cmdline.output, std::ofstream::out);
 		std::cout.rdbuf(ofs.rdbuf()); //redirect std::cout to file;
 		PrintResults(bam_signal_out, count_kmer_out, (!cmdline.input_jfdb.empty() && !cmdline.fasta.empty()));
 		std::cout.rdbuf(coutbuf); //reset to standard output again

@@ -142,7 +142,8 @@ int CountKmer::Run () const {
 
 	// Load jellyfish database as query db.
 	jellyfish::mapped_file binary_map(cmdline.input_jfdb.c_str());
-	binary_map.load(); // Load in memory for speedup.
+	if (!cmdline.region.empty()) // If there is no given region, load in memory for speedup.
+		binary_map.load();
 	binary_query bq(binary_map.base() + header.offset(), header.key_len(), header.counter_len(), header.matrix(),
 				header.size() - 1, binary_map.length() - header.offset());
 
@@ -173,7 +174,7 @@ int CountKmer::Run () const {
 	std::ofstream ofs;
 	std::streambuf *coutbuf = std::cout.rdbuf(); //save old buf
 	if (!cmdline.output.empty()) {
-		ofs.open(cmdline.output, std::ofstream::out | std::ofstream::app);
+		ofs.open(cmdline.output, std::ofstream::out);
 		std::cout.rdbuf(ofs.rdbuf()); //redirect std::cout to file;
 	}
 
