@@ -21,6 +21,7 @@ struct SCountKmerCml {
 	int bin = 1;
 	bool ascii = false;
 	bool rle = false; // --rle // running_length_encoding
+	bool contig = false;	// --contig
 	
 	// command line
 	std::string cmd;
@@ -42,7 +43,8 @@ struct SCountKmerCml {
 		std::string("	-r --region chr:begin-end	Specify a target region.\n") +
 		std::string("	--bin <INT>			Report a result for each # bp. [1]\n") +
 		std::string("	--ascii				Report count in ASCII: (log2(#) + 1) + 33.\n") +
-		std::string("	--rle				Ouput by running length encoding. --ascii is on.\n");
+		std::string("	--rle				Ouput by running length encoding. --ascii is on.\n") +
+		std::string("	--contig			Report an average count for each contig.\n");
 	}
 
 	// Check the required arguments.
@@ -54,6 +56,10 @@ struct SCountKmerCml {
 		}
 		if (bin > 1 && rle) {
 			std::cerr << "ERROR: --rle only work for --bin 1." << std::endl;
+			ok = false;
+		}
+		if (rle && contig) {
+			std::cerr << "ERROR: --rle and --contig are mutually exclusive." << std::endl;
 			ok = false;
 		}
 
@@ -75,6 +81,7 @@ struct SCountKmerCml {
 			{"bin", required_argument, NULL, 1},
 			{"ascii", no_argument, NULL, 2},
 			{"rle", no_argument, NULL, 3},
+			{"contig", no_argument, NULL, 4},
 			{0,0,0,0}
 		};
 		int option_index = 0;
@@ -89,6 +96,7 @@ struct SCountKmerCml {
 				case 1: bin = atoi(optarg); break;
 				case 2: ascii = true; break;
 				case 3: rle = true; ascii = true; break;
+				case 4: contig = true; break;
 				default: std::cerr << "WARNING: Unkonw parameter: " << long_option[option_index].name << std::endl; break;
 			}
 		}
@@ -108,7 +116,8 @@ class CountKmer {
 	CountKmer();
 	CountKmer(int argc, char** argv);
 	CountKmer(const char * pInput_jfdb, const char * pInput_fasta, const char * pOutput = NULL,
-			const char * pRegion = NULL, const int input_bin = 1, const bool input_ascii = false, const bool input_rle = false);
+			const char * pRegion = NULL, const int input_bin = 1, const bool input_ascii = false, 
+			const bool input_rle = false, const bool input_contig = false);
 
 	// The function will report kmer count according to the parameter setting.
 	// Return: 0 is successful.
@@ -117,7 +126,8 @@ class CountKmer {
 	// If files are not assinged when declaring the class, you may use the function to assign them.
 	void SetParameters(const SCountKmerCml & cml);
 	void SetParameters(const char * pInput_jfdb, const char * pInput_fasta, const char * pOutput = NULL,
-				const char * pRegion = NULL, const int input_bin = 1, const bool input_ascii = false, const bool input_rle = false);
+				const char * pRegion = NULL, const int input_bin = 1, const bool input_ascii = false, 
+				const bool input_rle = false, const bool input_contig = false);
  private:
 	SCountKmerCml cmdline;
 	// Not allow to use copy and assign constructors.

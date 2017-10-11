@@ -46,7 +46,7 @@ char CeilLog2 (const uint64_t in)
 }
 void GetKmerCount (const Fastaq::CReference & ref, const Fastaq::SRegion & region, const unsigned int & kmer_size, 
 			const jellyfish::file_header & header, const binary_query & bq, const bool running_length_encoding,
-			const bool ascii, const int & bin) {
+			const bool ascii, const int & bin, const bool contig) {
 
 
 	std::vector<std::string> ref_names;
@@ -73,27 +73,32 @@ void GetKmerCount (const Fastaq::CReference & ref, const Fastaq::SRegion & regio
 			jellyfish::mer_dna m;
 			m = ref.GetSubString(ref_names[i], j, kmer_size).c_str();
 			if (header.canonical()) m.canonicalize();
-			if (running_length_encoding) { // running_length_encoding must use ascii for reporting.
-				if (CeilLog2(bq.check(m)) == score) {
-					++score_count;
-				} else {
-					if (score != '\0')
-						std::cout << score << "\t" << score_count;
-					score_count = 1;
-					score = CeilLog2(bq.check(m));
-				}
-			} else { // not running_length_encoding
-				score_sum += bq.check(m);
+			if (contig) { // Report an average count for each contig
 				++score_count;
-				if (((j-target_begin + 1) % bin) == 0) {
-					if (ascii)
-						std::cout << static_cast<char>(CeilLog2((std::lround(score_sum / static_cast<float>(score_count)))));
-					else
-						std::cout << score_sum / static_cast<float>(score_count) << std::endl;
-					score_sum = 0;
-					score_count = 0;
+				score_sum += bq.check(m);
+			} else {
+				if (running_length_encoding) { // running_length_encoding must use ascii for reporting.
+					if (CeilLog2(bq.check(m)) == score) {
+						++score_count;
+					} else {
+						if (score != '\0')
+							std::cout << score << "\t" << score_count;
+						score_count = 1;
+						score = CeilLog2(bq.check(m));
+					}
+				} else { // not running_length_encoding
+					score_sum += bq.check(m);
+					++score_count;
+					if (((j-target_begin + 1) % bin) == 0) {
+						if (ascii)
+							std::cout << static_cast<char>(CeilLog2((std::lround(score_sum / static_cast<float>(score_count)))));
+						else
+							std::cout << score_sum / static_cast<float>(score_count) << std::endl;
+						score_sum = 0;
+						score_count = 0;
+					}
 				}
-			}
+			} // end of if contig
 		}
 		// Output the last score. Only running_length_encoding mode will use this.
 		if (running_length_encoding) {
@@ -102,6 +107,9 @@ void GetKmerCount (const Fastaq::CReference & ref, const Fastaq::SRegion & regio
 			std::cout << std::endl;
 		} else { // not running_length_encoding
 			if (score_count > 0) {
+				if (contig) // Report the chromosome name
+					std::cout << ref_names[i] << "\t";
+
 				if (ascii)
 					std::cout << static_cast<char>(CeilLog2((std::lround(score_sum / static_cast<float>(score_count)))));
 				else
@@ -110,7 +118,7 @@ void GetKmerCount (const Fastaq::CReference & ref, const Fastaq::SRegion & regio
 			if (ascii)
 				std::cout << std::endl;
 		}
-	}
+	} // end of the chromosome
 }
 } // namespace
 
@@ -178,7 +186,7 @@ int CountKmer::Run () const {
 		std::cout.rdbuf(ofs.rdbuf()); //redirect std::cout to file;
 	}
 
-	GetKmerCount(ref, region, kmer_size, header, bq, cmdline.rle, cmdline.ascii, cmdline.bin);
+	GetKmerCount(ref, region, kmer_size, header, bq, cmdline.rle, cmdline.ascii, cmdline.bin, cmdline.contig);
 
 	// Clean up
 	if (!cmdline.output.empty()) {
@@ -199,7 +207,7 @@ CountKmer::CountKmer(int argc, char** argv)
 
 CountKmer::CountKmer(
 	const char * pInput_jfdb, const char * pInput_fasta, const char * pOutput,
-	const char * pRegion, const int input_bin, const bool input_ascii, const bool input_rle)
+	const char * pRegion, const int input_bin, const bool input_ascii, const bool input_rle, const bool input_contig)
 {
 	SetParameters(pInput_jfdb, pInput_fasta, pOutput, pRegion, input_bin, input_ascii, input_rle);
 }
@@ -210,7 +218,7 @@ void CountKmer::SetParameters(const SCountKmerCml & cml) {
 
 void CountKmer::SetParameters(
 	const char * pInput_jfdb, const char * pInput_fasta, const char * pOutput,
-	const char * pRegion, const int input_bin, const bool input_ascii, const bool input_rle) {
+	const char * pRegion, const int input_bin, const bool input_ascii, const bool input_rle, const bool input_contig) {
 
 	cmdline.input_jfdb = pInput_jfdb;
 	cmdline.fasta = pInput_fasta;
