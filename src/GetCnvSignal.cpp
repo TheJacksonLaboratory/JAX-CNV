@@ -9,6 +9,7 @@
 // Self include
 #include "CountKmer.h"
 #include "GetCnvSignal.h"
+#include "ReadDepth.h"
 
 
 // FASTAQ include
@@ -26,11 +27,6 @@
 
 namespace {
 struct SBamData {
-	struct SReadDepth {
-		SReadDepth(const int & i_pos, const unsigned int & i_count) : pos(i_pos), count(i_count){}
-		int pos = 0;
-		unsigned int count = 0;
-	};
 	unsigned int total_read = 0;
 	unsigned int paired_reads = 0;
 	unsigned int proper_pairs = 0;
@@ -106,6 +102,7 @@ void PrintCleanBamData (SBamData & bam_data, const int & max_pos) {
 	bam_data.mismatches.clear();
 };
 
+// Locate the SBamData in the list by using pos.
 inline std::list<SBamData::SReadDepth>::iterator GetRdListIte (std::list<SBamData::SReadDepth> & read_depth, const int & pos) {
 	for (std::list<SBamData::SReadDepth>::iterator ite = read_depth.begin();
 		ite != read_depth.end(); ++ite) {
@@ -171,6 +168,7 @@ std::cerr << std::endl;
 				<< "\t\tThe smallest pos of the current bin is " << bam_data.read_depth.front().pos << std::endl;
 	} else {
 		int32_t pos = aln->core.pos;
+		// Locate the SBamData for RD in the list by using pos.
 		std::list<SBamData::SReadDepth>::iterator ite = GetRdListIte(bam_data.read_depth, pos);
 		for (uint32_t i = 0; i < aln->core.n_cigar; ++i) {
 			const uint32_t op = bam_cigar_op(*(pCigar + i));
@@ -179,6 +177,7 @@ std::cerr << std::endl;
 					if (op == BAM_CMATCH || op == BAM_CEQUAL || op == BAM_CDIFF) ++(ite->count);
 					++ite;
 					++pos;
+					// GetRdListIte cannot locate SBamData in the list for the given pos so append a new SBamData.
 					if (ite == bam_data.read_depth.end()) { // Need to add new element in the list.
 						SBamData::SReadDepth tmp_data(pos, 0);
 						bam_data.read_depth.push_back(tmp_data);
@@ -212,8 +211,10 @@ void ProcessBam (const char * bam_filename, const Fastaq::SRegion & region, cons
 			}
 			const int cur_bin = aln->core.pos / bin;
 			if (cur_bin != pre_bin) {
-				for (int i = pre_bin; i < cur_bin; ++i)
-					PrintCleanBamData(bam_data, (i + 1) * bin - 1); // (i + 1) * bin - 1 for giving the max pos of the bin.
+				for (int i = pre_bin; i < cur_bin; ++i){
+					CallHmm::HmmAndViterbi(bam_data.read_depths);
+					//PrintCleanBamData(bam_data, (i + 1) * bin - 1); // (i + 1) * bin - 1 for giving the max pos of the bin.
+				}
 				pre_bin = cur_bin;
 			}
 			ProcessAlignment(bam_data, aln);
@@ -239,8 +240,10 @@ void ProcessBam (const char * bam_filename, const Fastaq::SRegion & region, cons
 				const int cur_bin = aln->core.pos / bin;
 				// If the cur_bin is not the same as pre_bin, we clean up the pre_bin.
 				if ((cur_bin > pre_bin) && (cur_bin != pre_bin)) {
-					for (int i = pre_bin; i < cur_bin; ++i)
-						PrintCleanBamData(bam_data, (i + 1) * bin - 1); // (i + 1) * bin - 1 for giving the max pos of the bin.
+					for (int i = pre_bin; i < cur_bin; ++i){
+						CallHmm::HmmAndViterbi(bam_data.read_depths);
+						//PrintCleanBamData(bam_data, (i + 1) * bin - 1); // (i + 1) * bin - 1 for giving the max pos of the bin.
+					}
 					pre_bin = cur_bin;
 				}
 				ProcessAlignment(bam_data, aln);
