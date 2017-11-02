@@ -94,14 +94,14 @@ void ViterbiLog(HMM *phmm, int T, int *O, double **delta, int **psi,
 		for (t = 1; t <= T; t++) {
 			biot[i][t] = log(phmm->B[i][O[t]]);
 		}
- 
+
         /* 1. Initialization  */
  
         for (i = 1; i <= phmm->N; i++) {
                 delta[1][i] = phmm->pi[i] + biot[i][1];
                 psi[1][i] = 0;
         }
- 
+
         /* 2. Recursion */
  
         for (t = 2; t <= T; t++) {

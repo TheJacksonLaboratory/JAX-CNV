@@ -15,6 +15,7 @@ else
 endif
 
 CXXFLAGS:=-std=c++11 $(CFLAGS)
+export $(CFLAGS)
 export $(CXXFLAGS)
 
 SOURCES = main.cpp src/CountKmer.cpp src/GetCnvSignal.cpp src/CallHmm.cpp

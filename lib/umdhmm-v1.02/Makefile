@@ -6,7 +6,7 @@
 # $Id: Makefile,v 1.3 1998/02/23 08:12:35 kanungo Exp kanungo $
 # 
 #
-CFLAGS= -g
+CFLAGS= -O3
 INCS=
 # use the following line to "Purify" the code
 #CC=purify gcc
