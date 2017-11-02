@@ -7,7 +7,7 @@ LIB=$(MASTER_DIR)/lib
 AUTOCONF = autoconf
 AUTOHEADER = autoheader
 
-CFLAGS:=-pthread -Wall
+CFLAGS:=-pthread
 ifeq ($(mode), debug)
 	CFLAGS:=$(CFLAGS) -O0 -g -DDEBUG
 else
@@ -17,28 +17,38 @@ endif
 CXXFLAGS:=-std=c++11 $(CFLAGS)
 export $(CXXFLAGS)
 
-SUB_DIRS = $(LIB)/fastaq $(LIB)/jellyfish-2.2.6
-SOURCES = main.cpp src/CountKmer.cpp src/GetCnvSignal.cpp
+SOURCES = main.cpp src/CountKmer.cpp src/GetCnvSignal.cpp src/CallHmm.cpp
 
 PROGRAM=$(BIN_DIR)/GetKmerCount
+
+UMDHMM_SRC= $(LIB)/umdhmm-v1.02/backward.c \
+		$(LIB)/umdhmm-v1.02/baum.c \
+		$(LIB)/umdhmm-v1.02/forward.c \
+		$(LIB)/umdhmm-v1.02/hmmrand.c \
+		$(LIB)/umdhmm-v1.02/hmmutils.c \
+		$(LIB)/umdhmm-v1.02/nrutil.c \
+		$(LIB)/umdhmm-v1.02/sequence.c \
+		$(LIB)/umdhmm-v1.02/viterbi.c
+
+INCLUDE = -I lib/jellyfish-2.2.6/include -I lib/fastaq/include/ -I lib/ -I lib/htslib/ -I include/
+LIBRARY = -lz -lcurl -lbz2 $(LIB)/fastaq/obj/*.o $(LIB)/jellyfish-2.2.6/lib/*.o \
+		$(patsubst %.c, %.o, $(UMDHMM_SRC) )
+
 JELLYFISH=$(LIB)/jellyfish-2.2.6/bin/jellyfish
-
-INCLUDE = -I lib/jellyfish-2.2.6/include -I lib/fastaq/include/ -I lib/htslib/ -I include/
-LIBRARY = -lz -lcurl -lbz2 $(LIB)/fastaq/obj/*.o $(LIB)/jellyfish-2.2.6/lib/*.o
-
-HTS_LIB:=$(LIB)/htslib/libhts.a
+HTS_LIB=$(LIB)/htslib/libhts.a
 
 all: $(PROGRAM)
 .PHONY: all
 
-$(PROGRAM): fastaq $(JELLYFISH) $(HTS_LIB) $(SOURCES)
+$(PROGRAM): fastaq umdhmm $(JELLYFISH) $(HTS_LIB) $(SOURCES)
 	@mkdir -p $(BIN_DIR)
-	@$(CXX) $(CXXFLAGS) -o $@ $(SOURCES) $(INCLUDE) $(HTS_LIB) $(LIBRARY)
+	@$(CXX) $(CXXFLAGS) -o $@ $(SOURCES) $(UMDHMM_SRC) $(INCLUDE) $(HTS_LIB) $(LIBRARY)
 
 .PHONY: all
 
 clean:
 	$(MAKE) clean -C $(LIB)/fastaq
+	$(MAKE) clean -C $(LIB)/umdhmm-v1.02
 	@rm -rf $(LIB)/jellyfish-2.2.6
 	@rm -rf $(OBJ_DIR) $(BIN_DIR)
 .PHONY: clean
@@ -52,6 +62,10 @@ $(BIN_DIR):
 fastaq:
 	@echo "- Building in fastaq"
 	@$(MAKE) --no-print-directory --directory=$(LIB)/fastaq
+
+umdhmm:
+	@echo "- Building in umdhmm"
+	@$(MAKE) --no-print-directory --directory=$(LIB)/umdhmm-v1.02
 
 $(JELLYFISH):
 	@echo "- Building in jellyfish"

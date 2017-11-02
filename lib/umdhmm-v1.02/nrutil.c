@@ -8,17 +8,19 @@
 **      Organization: University of Maryland
 **
 **      $Id: nrutil.c,v 1.2 1998/02/19 16:31:35 kanungo Exp kanungo $
+**
+**	Wan-Ping Lee at the Jackson Lab modified the code on 2017-11-02.
 */
 
 #include <malloc.h>
 #include <stdio.h>
+#include <stdlib.h>
 static char rcsid[] = "$Id: nrutil.c,v 1.2 1998/02/19 16:31:35 kanungo Exp kanungo $";
 
 
-void nrerror(error_text)
-char error_text[];
+void nrerror(const char *error_text)
 {
-	void exit();
+	//void exit(int);
 
 	fprintf(stderr,"Numerical Recipes run-time error...\n");
 	fprintf(stderr,"%s\n",error_text);
@@ -28,8 +30,7 @@ char error_text[];
 
 
 
-float *vector(nl,nh)
-int nl,nh;
+float *vector(int nl, int nh)
 {
 	float *v;
 
@@ -38,8 +39,7 @@ int nl,nh;
 	return v-nl;
 }
 
-int *ivector(nl,nh)
-int nl,nh;
+int *ivector(int nl, int nh)
 {
 	int *v;
 
@@ -48,8 +48,7 @@ int nl,nh;
 	return v-nl;
 }
 
-double *dvector(nl,nh)
-int nl,nh;
+double *dvector(int nl, int nh)
 {
 	double *v;
 
@@ -60,8 +59,7 @@ int nl,nh;
 
 
 
-float **matrix(nrl,nrh,ncl,nch)
-int nrl,nrh,ncl,nch;
+float **matrix(int nrl, int nrh, int ncl, int nch)
 {
 	int i;
 	float **m;
@@ -78,8 +76,7 @@ int nrl,nrh,ncl,nch;
 	return m;
 }
 
-double **dmatrix(nrl,nrh,ncl,nch)
-int nrl,nrh,ncl,nch;
+double **dmatrix(int nrl, int nrh, int ncl, int nch)
 {
 	int i;
 	double **m;
@@ -96,8 +93,7 @@ int nrl,nrh,ncl,nch;
 	return m;
 }
 
-int **imatrix(nrl,nrh,ncl,nch)
-int nrl,nrh,ncl,nch;
+int **imatrix(int nrl, int nrh, int ncl, int nch)
 {
 	int i,**m;
 
@@ -115,9 +111,7 @@ int nrl,nrh,ncl,nch;
 
 
 
-float **submatrix(a,oldrl,oldrh,oldcl,oldch,newrl,newcl)
-float **a;
-int oldrl,oldrh,oldcl,oldch,newrl,newcl;
+float **submatrix(float **a, int oldrl, int oldrh, int oldcl, int oldch, int newrl, int newcl)
 {
 	int i,j;
 	float **m;
@@ -133,31 +127,24 @@ int oldrl,oldrh,oldcl,oldch,newrl,newcl;
 
 
 
-void free_vector(v,nl,nh)
-float *v;
-int nl,nh;
+void free_vector(float *v, int nl, int nh)
 {
 	free((char*) (v+nl));
 }
 
-void free_ivector(v,nl,nh)
-int *v,nl,nh;
+void free_ivector(int *v, int nl, int nh)
 {
 	free((char*) (v+nl));
 }
 
-void free_dvector(v,nl,nh)
-double *v;
-int nl,nh;
+void free_dvector(double *v, int nl, int nh)
 {
 	free((char*) (v+nl));
 }
 
 
 
-void free_matrix(m,nrl,nrh,ncl,nch)
-float **m;
-int nrl,nrh,ncl,nch;
+void free_matrix(float **m, int nrl, int nrh, int ncl, int nch)
 {
 	int i;
 
@@ -165,9 +152,7 @@ int nrl,nrh,ncl,nch;
 	free((char*) (m+nrl));
 }
 
-void free_dmatrix(m,nrl,nrh,ncl,nch)
-double **m;
-int nrl,nrh,ncl,nch;
+void free_dmatrix(double **m, int nrl, int nrh, int ncl, int nch)
 {
 	int i;
 
@@ -175,9 +160,7 @@ int nrl,nrh,ncl,nch;
 	free((char*) (m+nrl));
 }
 
-void free_imatrix(m,nrl,nrh,ncl,nch)
-int **m;
-int nrl,nrh,ncl,nch;
+void free_imatrix(int **m, int nrl, int nrh, int ncl, int nch)
 {
 	int i;
 
@@ -187,18 +170,14 @@ int nrl,nrh,ncl,nch;
 
 
 
-void free_submatrix(b,nrl,nrh,ncl,nch)
-float **b;
-int nrl,nrh,ncl,nch;
+void free_submatrix(float **b, int nrl, int nrh, int ncl, int nch)
 {
 	free((char*) (b+nrl));
 }
 
 
 
-float **convert_matrix(a,nrl,nrh,ncl,nch)
-float *a;
-int nrl,nrh,ncl,nch;
+float **convert_matrix(float *a, int nrl, int nrh, int ncl, int nch)
 {
 	int i,j,nrow,ncol;
 	float **m;
@@ -214,9 +193,7 @@ int nrl,nrh,ncl,nch;
 
 
 
-void free_convert_matrix(b,nrl,nrh,ncl,nch)
-float **b;
-int nrl,nrh,ncl,nch;
+void free_convert_matrix(float **b, int nrl, int nrh, int ncl, int nch)
 {
 	free((char*) (b+nrl));
 }

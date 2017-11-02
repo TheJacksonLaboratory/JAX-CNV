@@ -10,6 +10,7 @@
 #include "CountKmer.h"
 #include "GetCnvSignal.h"
 #include "ReadDepth.h"
+#include "CallHmm.h"
 
 
 // FASTAQ include
@@ -103,22 +104,22 @@ void PrintCleanBamData (SBamData & bam_data, const int & max_pos) {
 };
 
 // Locate the SBamData in the list by using pos.
-inline std::list<SBamData::SReadDepth>::iterator GetRdListIte (std::list<SBamData::SReadDepth> & read_depth, const int & pos) {
-	for (std::list<SBamData::SReadDepth>::iterator ite = read_depth.begin();
+inline std::list<SReadDepth>::iterator GetRdListIte (std::list<SReadDepth> & read_depth, const int & pos) {
+	for (std::list<SReadDepth>::iterator ite = read_depth.begin();
 		ite != read_depth.end(); ++ite) {
 		if (pos == ite->pos)
 			return ite;
 	}
 
 	// The pos is larger than read_depth.end()
-	SBamData::SReadDepth tmp_data((read_depth.empty() ? pos : read_depth.back().pos + 1), 0); 
+	SReadDepth tmp_data((read_depth.empty() ? pos : read_depth.back().pos + 1), 0); 
 	while (tmp_data.pos <= pos) {
 		read_depth.push_back(tmp_data);
 		++tmp_data.pos;
 	}
 
 	// Return the last ite.
-	std::list<SBamData::SReadDepth>::iterator ite = read_depth.begin();
+	std::list<SReadDepth>::iterator ite = read_depth.begin();
 	std::advance(ite, read_depth.size() - 1); //ite is set to last element
 	return ite;
 }
@@ -169,7 +170,7 @@ std::cerr << std::endl;
 	} else {
 		int32_t pos = aln->core.pos;
 		// Locate the SBamData for RD in the list by using pos.
-		std::list<SBamData::SReadDepth>::iterator ite = GetRdListIte(bam_data.read_depth, pos);
+		std::list<SReadDepth>::iterator ite = GetRdListIte(bam_data.read_depth, pos);
 		for (uint32_t i = 0; i < aln->core.n_cigar; ++i) {
 			const uint32_t op = bam_cigar_op(*(pCigar + i));
 			if (op == BAM_CMATCH || op == BAM_CEQUAL || op == BAM_CDIFF || op == BAM_CDEL || op == BAM_CREF_SKIP) {
@@ -179,7 +180,7 @@ std::cerr << std::endl;
 					++pos;
 					// GetRdListIte cannot locate SBamData in the list for the given pos so append a new SBamData.
 					if (ite == bam_data.read_depth.end()) { // Need to add new element in the list.
-						SBamData::SReadDepth tmp_data(pos, 0);
+						SReadDepth tmp_data(pos, 0);
 						bam_data.read_depth.push_back(tmp_data);
 						ite =  bam_data.read_depth.begin();
 						std::advance(ite, bam_data.read_depth.size() - 1); //iter is set to last element
@@ -212,7 +213,7 @@ void ProcessBam (const char * bam_filename, const Fastaq::SRegion & region, cons
 			const int cur_bin = aln->core.pos / bin;
 			if (cur_bin != pre_bin) {
 				for (int i = pre_bin; i < cur_bin; ++i){
-					CallHmm::HmmAndViterbi(bam_data.read_depths);
+					CallHmm::HmmAndViterbi(bam_data.read_depth);
 					//PrintCleanBamData(bam_data, (i + 1) * bin - 1); // (i + 1) * bin - 1 for giving the max pos of the bin.
 				}
 				pre_bin = cur_bin;
@@ -241,7 +242,7 @@ void ProcessBam (const char * bam_filename, const Fastaq::SRegion & region, cons
 				// If the cur_bin is not the same as pre_bin, we clean up the pre_bin.
 				if ((cur_bin > pre_bin) && (cur_bin != pre_bin)) {
 					for (int i = pre_bin; i < cur_bin; ++i){
-						CallHmm::HmmAndViterbi(bam_data.read_depths);
+						CallHmm::HmmAndViterbi(bam_data.read_depth);
 						//PrintCleanBamData(bam_data, (i + 1) * bin - 1); // (i + 1) * bin - 1 for giving the max pos of the bin.
 					}
 					pre_bin = cur_bin;
