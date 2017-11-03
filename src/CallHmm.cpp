@@ -40,7 +40,46 @@ void PrintHmm (const HMM& hmm, const int& T, const int* O) {
 	}
 	std::cerr << std::endl;
 }
+
+void SmoothStats(const std::list <SReadDepth>& read_depth, const int* q, const int T) {
+	struct hmm_stats {
+		hmm_stats(const unsigned int a, const unsigned int b, const unsigned int c): pos(a), stats(b), length(c){};
+		unsigned int pos;
+		unsigned int stats;
+		unsigned int length;
+	};
+	std::list <hmm_stats> result;
+	std::list <SReadDepth>::const_iterator rd_ite = read_depth.begin();
+	for (int i = 1; i <= T; ++i, ++rd_ite) {
+		if (result.empty() || q[i] != result.back().stats) { // Create the init hmm_stats.
+			hmm_stats tmp(rd_ite->pos, q[i], 0);
+			result.push_back(tmp);
+		}
+		++result.back().length;
+	}
+
+	for (std::list <hmm_stats>::const_iterator ite = result.begin(); ite != result.end(); ++ite) {
+		std::cout << ite->pos << "\t" << ite->stats << "\t" << ite->length << std::endl;
+	}
+
+	std::list <hmm_stats> smooth_result;
+	smooth_result.push_back(result.front());
+	for (std::list <hmm_stats>::const_iterator ite = std::next(result.begin()); ite != result.end(); ++ite) {
+		// If the current stats too small or the same as previous, then merge the cur to the previous stats.
+		if ((ite->length / static_cast<double> ((std::prev(ite))->length)) < 0.1
+			|| ite->stats == smooth_result.back().stats) { // merge
+			smooth_result.back().length += ite->length;
+		} else {
+			smooth_result.push_back(*ite);
+		}
+	}
+
+	std::cout << "After smoothing" << std::endl;
+	for (std::list <hmm_stats>::const_iterator ite = smooth_result.begin(); ite != smooth_result.end(); ++ite) {
+		std::cout << ite->pos << "\t" << ite->stats << "\t" << ite->length << std::endl;
+	}
 }
+} // namespace
 
 namespace CallHmm { 
 bool HmmAndViterbi (const std::list <SReadDepth>& read_depth) {
@@ -83,11 +122,7 @@ PrintHmm(hmm, T, O);
 #endif
 	
 	ViterbiLog(&hmm, T, O, delta, psi, q, &logproba);
-
-	for (int i = 1; i <= T; ++i) {
-		std::cout << q[i] << " ";
-	}
-	std::cout << std::endl;
+	SmoothStats(read_depth, q, T);
 
 	// Clean up
 	for (int i = 1; i <= hmm.N; ++i) {
