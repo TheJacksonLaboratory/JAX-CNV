@@ -84,6 +84,11 @@ PrintHmm(hmm, T, O);
 	
 	ViterbiLog(&hmm, T, O, delta, psi, q, &logproba);
 
+	for (int i = 1; i <= T; ++i) {
+		std::cout << q[i] << " ";
+	}
+	std::cout << std::endl;
+
 	// Clean up
 	for (int i = 1; i <= hmm.N; ++i) {
 		delete hmm.A[i];

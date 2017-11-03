@@ -51,12 +51,11 @@ struct SBamData {
 	}
 };
 
-void PrintCleanBamData (SBamData & bam_data, const int & max_pos) {
+void PrintCleanBamData (SBamData & bam_data, std::list <SReadDepth> & hmm_rd, const int & max_pos) {
 	// If the max_pos means the last element.
-	std::cout << (!bam_data.read_depth.empty() && max_pos == std::numeric_limits<std::int32_t>::max()
-		? bam_data.read_depth.back().pos
-		: max_pos)
-		<< "\t";
+	const int cur_pos = !bam_data.read_depth.empty() && max_pos == std::numeric_limits<std::int32_t>::max()
+				? bam_data.read_depth.back().pos : max_pos;
+	std::cout << cur_pos << "\t";
 
 
 	if (bam_data.total_read == 0) {
@@ -87,9 +86,10 @@ void PrintCleanBamData (SBamData & bam_data, const int & max_pos) {
 		sum += bam_data.read_depth.front().count;
 		bam_data.read_depth.pop_front();
 	}
-		
 	std::cout << (pos_count == 0 ? 0 : sum / static_cast<double>(pos_count)) << std::endl;
-	
+
+	SReadDepth rd_tmp(cur_pos, round(sum / static_cast<double>(pos_count)));
+	hmm_rd.push_back(rd_tmp);
 
 	// Clean
 	//  bam_data.read_depth has been cleaned in the while loop.
@@ -104,18 +104,22 @@ void PrintCleanBamData (SBamData & bam_data, const int & max_pos) {
 };
 
 // Locate the SBamData in the list by using pos.
+// TODO: The performance of this function needs to be improved.
 inline std::list<SReadDepth>::iterator GetRdListIte (std::list<SReadDepth> & read_depth, const int & pos) {
-	for (std::list<SReadDepth>::iterator ite = read_depth.begin();
-		ite != read_depth.end(); ++ite) {
-		if (pos == ite->pos)
-			return ite;
-	}
-
-	// The pos is larger than read_depth.end()
-	SReadDepth tmp_data((read_depth.empty() ? pos : read_depth.back().pos + 1), 0); 
-	while (tmp_data.pos <= pos) {
-		read_depth.push_back(tmp_data);
-		++tmp_data.pos;
+	if (!read_depth.empty() && pos <= read_depth.back().pos) {
+		for (std::list<SReadDepth>::iterator ite = read_depth.begin();
+			ite != read_depth.end(); ++ite) {
+			if (pos == ite->pos)
+				return ite; // Get the match pos and return the iterator.
+		}
+	} else {
+	
+		// The pos is larger than read_depth.end()
+		SReadDepth tmp_data((read_depth.empty() ? pos : read_depth.back().pos + 1), 0); 
+		while (tmp_data.pos <= pos) {
+			read_depth.push_back(tmp_data);
+			++tmp_data.pos;
+		}
 	}
 
 	// Return the last ite.
@@ -200,6 +204,7 @@ void ProcessBam (const char * bam_filename, const Fastaq::SRegion & region, cons
 	bam1_t * aln = bam_init1();
 
 	SBamData bam_data;
+	std::list <SReadDepth> hmm_rd; // The list to collect read depth info for HMM.
 
 	if (region.chr.empty()) { // the region is not set
 		int pre_bin = 0;
@@ -213,8 +218,7 @@ void ProcessBam (const char * bam_filename, const Fastaq::SRegion & region, cons
 			const int cur_bin = aln->core.pos / bin;
 			if (cur_bin != pre_bin) {
 				for (int i = pre_bin; i < cur_bin; ++i){
-					CallHmm::HmmAndViterbi(bam_data.read_depth);
-					//PrintCleanBamData(bam_data, (i + 1) * bin - 1); // (i + 1) * bin - 1 for giving the max pos of the bin.
+					PrintCleanBamData(bam_data, hmm_rd, (i + 1) * bin - 1); // (i + 1) * bin - 1 for giving the max pos of the bin.
 				}
 				pre_bin = cur_bin;
 			}
@@ -242,8 +246,7 @@ void ProcessBam (const char * bam_filename, const Fastaq::SRegion & region, cons
 				// If the cur_bin is not the same as pre_bin, we clean up the pre_bin.
 				if ((cur_bin > pre_bin) && (cur_bin != pre_bin)) {
 					for (int i = pre_bin; i < cur_bin; ++i){
-						CallHmm::HmmAndViterbi(bam_data.read_depth);
-						//PrintCleanBamData(bam_data, (i + 1) * bin - 1); // (i + 1) * bin - 1 for giving the max pos of the bin.
+						PrintCleanBamData(bam_data, hmm_rd, (i + 1) * bin - 1); // (i + 1) * bin - 1 for giving the max pos of the bin.
 					}
 					pre_bin = cur_bin;
 				}
@@ -255,7 +258,8 @@ void ProcessBam (const char * bam_filename, const Fastaq::SRegion & region, cons
 		}
 		
 	}
-
+	
+	CallHmm::HmmAndViterbi(hmm_rd);
 	//PrintCleanBamData(bam_data, std::numeric_limits<std::int32_t>::max());
 
 	// Clean up
