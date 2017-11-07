@@ -51,6 +51,8 @@ struct SBamData {
 	}
 };
 
+// Func: Once alignments in a bin have been processed, then dump the info we collect for this bin.
+//       Also, clean the info for the next bin.
 void PrintCleanBamData (SBamData & bam_data, std::list <SReadDepth> & hmm_rd, const int & max_pos) {
 	// If the max_pos means the last element.
 	const int cur_pos = !bam_data.read_depth.empty() && max_pos == std::numeric_limits<std::int32_t>::max()
@@ -103,7 +105,9 @@ void PrintCleanBamData (SBamData & bam_data, std::list <SReadDepth> & hmm_rd, co
 	bam_data.mismatches.clear();
 };
 
-// Locate the SBamData in the list by using pos.
+// Func: Locate the SBamData in the list by using pos for read depth calculation.
+//       If pos is not in SBamData::read_depth, then push new continues elements.
+//       ProcessAlignment calls this function.
 // TODO: The performance of this function needs to be improved.
 inline std::list<SReadDepth>::iterator GetRdListIte (std::list<SReadDepth> & read_depth, const int & pos) {
 	if (!read_depth.empty() && pos <= read_depth.back().pos) {
@@ -128,25 +132,29 @@ inline std::list<SReadDepth>::iterator GetRdListIte (std::list<SReadDepth> & rea
 	return ite;
 }
 
+// Func: Extract flag and read depth information and collect them in bam_data.
+// @bam_data: The info of the alignment will be kept in this data.
+// @aln: hts_lib bam alignment.
 void ProcessAlignment (SBamData & bam_data, const bam1_t * aln) {
 	// The alignment is not mapped.
 	if (aln->core.flag & BAM_FUNMAP || aln->core.flag & BAM_FSECONDARY || aln->core.flag & BAM_FQCFAIL 
 		|| aln->core.flag & BAM_FDUP || aln->core.flag & BAM_FSUPPLEMENTARY) 
 		return;
 
-/*
-std::cerr << "aln pos: " << aln->core.pos << "\t";
-for (uint32_t i = 0; i < aln->core.n_cigar; ++i) {
-	std::cerr << bam_cigar_oplen(*(bam_get_cigar(aln) + i)) << "\t" << bam_cigar_op(*(bam_get_cigar(aln) + i)) << "\t";
-}
-std::cerr << std::endl;
+	/*
+	std::cerr << "aln pos: " << aln->core.pos << "\t";
+	for (uint32_t i = 0; i < aln->core.n_cigar; ++i) {
+		std::cerr << bam_cigar_oplen(*(bam_get_cigar(aln) + i)) << "\t" << bam_cigar_op(*(bam_get_cigar(aln) + i)) << "\t";
+	}
+	std::cerr << std::endl;
 
-//int32_t pos = aln->core.pos +1; //left most position of alignment in zero based coordianate (+1)
-//char *chr = header->target_name[aln->core.tid] ; //contig name (chromosome)
-//uint32_t len = aln->core.l_qseq; //length of the read.
-//uint8_t *q = bam_get_seq(aln); //quality string
-//uint32_t q2 = aln->core.qual ; //mapping quality
-*/
+	//int32_t pos = aln->core.pos +1; //left most position of alignment in zero based coordianate (+1)
+	//char *chr = header->target_name[aln->core.tid] ; //contig name (chromosome)
+	//uint32_t len = aln->core.l_qseq; //length of the read.
+	//uint8_t *q = bam_get_seq(aln); //quality string
+	//uint32_t q2 = aln->core.qual ; //mapping quality
+	*/
+
 	++bam_data.total_read;
 	// Paired-end read
 	if (aln->core.flag & BAM_FPAIRED) ++bam_data.paired_reads;
@@ -196,6 +204,8 @@ std::cerr << std::endl;
 
 }
 
+// Func: Process bam by giving bam filename, bam region and bin size.
+//       For each alignment, Function ProcessAlignment will extract info the alignment.
 void ProcessBam (const char * bam_filename, const Fastaq::SRegion & region, const int & bin) {
 	samFile * bam_reader = sam_open(bam_filename, "r");
 
@@ -206,6 +216,7 @@ void ProcessBam (const char * bam_filename, const Fastaq::SRegion & region, cons
 	SBamData bam_data;
 	std::list <SReadDepth> hmm_rd; // The list to collect read depth info for HMM.
 
+	// We parse regions in so this part of code is abandoned.
 	if (region.chr.empty()) { // the region is not set
 		int pre_bin = 0;
 		int pre_tid = 0;
@@ -309,18 +320,50 @@ int GetCnvSignal::Run () const {
 	}
 
 	// Parse region.
-	Fastaq::SRegion region;
-	if (!cmdline.region.empty()) {
-		if (!region.Parse(cmdline.region)) {
+	std::vector<Fastaq::SRegion> regions;
+	if (!cmdline.region.empty()) { // Parse region from the command line.
+		Fastaq::SRegion tmp_region;
+		if (!tmp_region.Parse(cmdline.region)) {
 			std::cerr << "ERROR: The given region is not valid." << std::endl;
 			return 1;
 		}
+		if (tmp_region.begin == 0 && tmp_region.end == 0) {
+			// Load bam header
+			samFile * bam_reader = sam_open(cmdline.bam.c_str(), "r");
+			bam_hdr_t *header;
+			header = sam_hdr_read(bam_reader);
+			for (int32_t i = 0; i < header->n_targets; ++i) {
+				if (tmp_region.chr.compare(header->target_name[i]) == 0) {
+					tmp_region.end = (header->target_len[i]) - 1;
+					break;
+				}
+			}
+		}
+		regions.push_back(tmp_region);
+	} else { // Parse regions from the bam header.
+		// Load bam header
+		samFile * bam_reader = sam_open(cmdline.bam.c_str(), "r");
+		bam_hdr_t *header;
+		header = sam_hdr_read(bam_reader);
+		for (int32_t i = 0; i < header->n_targets; ++i) {
+			Fastaq::SRegion tmp_region;
+			tmp_region.chr = (header->target_name[i]);
+			tmp_region.begin = 0;
+			tmp_region.end = (header->target_len[i]) - 1;
+			regions.push_back(tmp_region);
+		}
+		bam_hdr_destroy(header);
+		sam_close(bam_reader);
 	}
 
 	coutbuf = std::cout.rdbuf(); //save old buf
 	std::stringstream bam_signal_out;
 	std::cout.rdbuf(bam_signal_out.rdbuf()); //redirect std::cout to bam_signal_out
-	ProcessBam(cmdline.bam.c_str(), region, cmdline.bin);
+
+	// Process BAM by regions
+	for (std::vector<Fastaq::SRegion>::const_iterator ite = regions.begin(); ite != regions.end(); ++ite) {
+		ProcessBam(cmdline.bam.c_str(), *ite, cmdline.bin);
+	}
 	std::cout.rdbuf(coutbuf); //reset to standard output again
 
 	// Open output if given.
