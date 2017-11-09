@@ -57,9 +57,9 @@ void PrintCleanBamData (SBamData & bam_data, std::list <SReadDepth> & hmm_rd, co
 	// If the max_pos means the last element.
 	const int cur_pos = !bam_data.read_depth.empty() && max_pos == std::numeric_limits<std::int32_t>::max()
 				? bam_data.read_depth.back().pos : max_pos;
-	std::cout << cur_pos << "\t";
+//	std::cout << cur_pos << "\t";
 
-
+/*
 	if (bam_data.total_read == 0) {
 		std::cout << "0\t0\t0\t0\t0\t0\t0\t";
 	} else {
@@ -80,6 +80,7 @@ void PrintCleanBamData (SBamData & bam_data, std::list <SReadDepth> & hmm_rd, co
 			sum += *ite;
 		std::cout << sum / static_cast<double>(bam_data.total_read) << "\t";
 	}
+*/
 	// Read depth
 	uint64_t sum = 0;
 	unsigned int pos_count = 0;
@@ -88,7 +89,7 @@ void PrintCleanBamData (SBamData & bam_data, std::list <SReadDepth> & hmm_rd, co
 		sum += bam_data.read_depth.front().count;
 		bam_data.read_depth.pop_front();
 	}
-	std::cout << (pos_count == 0 ? 0 : sum / static_cast<double>(pos_count)) << std::endl;
+	//std::cout << (pos_count == 0 ? 0 : sum / static_cast<double>(pos_count)) << std::endl;
 
 	SReadDepth rd_tmp(cur_pos, round(sum / static_cast<double>(pos_count)));
 	hmm_rd.push_back(rd_tmp);
@@ -270,7 +271,7 @@ void ProcessBam (const char * bam_filename, const Fastaq::SRegion & region, cons
 		
 	}
 	
-	CallHmm::HmmAndViterbi(hmm_rd);
+	CallHmm::HmmAndViterbi(hmm_rd, bin);
 	//PrintCleanBamData(bam_data, std::numeric_limits<std::int32_t>::max());
 
 	// Clean up

@@ -41,7 +41,7 @@ void PrintHmm (const HMM& hmm, const int& T, const int* O) {
 	std::cerr << std::endl;
 }
 
-void SmoothStats(const std::list <SReadDepth>& read_depth, const int* q, const int T) {
+void SmoothStats(const std::list <SReadDepth>& read_depth, const int bin_size, const int* q, const int T) {
 	struct hmm_stats {
 		hmm_stats(const unsigned int a, const unsigned int b, const unsigned int c): pos(a), stats(b), length(c){};
 		unsigned int pos;
@@ -58,15 +58,18 @@ void SmoothStats(const std::list <SReadDepth>& read_depth, const int* q, const i
 		++result.back().length;
 	}
 
+#ifdef DEBUG
+	std::cerr << "HMM before smoothing" << std::endl;
 	for (std::list <hmm_stats>::const_iterator ite = result.begin(); ite != result.end(); ++ite) {
 		std::cout << ite->pos << "\t" << ite->stats << "\t" << ite->length << std::endl;
 	}
+#endif
 
 	std::list <hmm_stats> smooth_result;
 	smooth_result.push_back(result.front());
 	for (std::list <hmm_stats>::const_iterator ite = std::next(result.begin()); ite != result.end(); ++ite) {
 		// If the current stats too small or the same as previous, then merge the cur to the previous stats.
-		if ((ite->length / static_cast<double> ((std::prev(ite))->length)) < 0.1
+		if ((ite->length * bin_size < 5000) // TODO: The minimum detectable CNV is 5000bp.
 			|| ite->stats == smooth_result.back().stats) { // merge
 			smooth_result.back().length += ite->length;
 		} else {
@@ -74,15 +77,22 @@ void SmoothStats(const std::list <SReadDepth>& read_depth, const int* q, const i
 		}
 	}
 
-	std::cout << "After smoothing" << std::endl;
+#ifdef DEBUG
+	std::cerr << "HMM after smoothing" << std::endl;
 	for (std::list <hmm_stats>::const_iterator ite = smooth_result.begin(); ite != smooth_result.end(); ++ite) {
 		std::cout << ite->pos << "\t" << ite->stats << "\t" << ite->length << std::endl;
+	}
+#endif
+
+	for (std::list <hmm_stats>::const_iterator ite = smooth_result.begin(); ite != smooth_result.end(); ++ite) {
+		if (ite->length * bin_size > 300000 && ite->stats != 3)
+			std::cout << ite->pos << "\t" << ite->stats << "\t" << ite->length << std::endl;
 	}
 }
 } // namespace
 
 namespace CallHmm { 
-bool HmmAndViterbi (const std::list <SReadDepth>& read_depth) {
+bool HmmAndViterbi (const std::list <SReadDepth>& read_depth, const int bin_size) {
 	if (read_depth.empty()) return false;
 
 	// Init HMM
@@ -122,7 +132,7 @@ PrintHmm(hmm, T, O);
 #endif
 	
 	ViterbiLog(&hmm, T, O, delta, psi, q, &logproba);
-	SmoothStats(read_depth, q, T);
+	SmoothStats(read_depth, bin_size, q, T);
 
 	// Clean up
 	for (int i = 1; i <= hmm.N; ++i) {
