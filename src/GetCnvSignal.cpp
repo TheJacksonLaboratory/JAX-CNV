@@ -142,20 +142,6 @@ void ProcessAlignment (SBamData & bam_data, const bam1_t * aln) {
 		|| aln->core.flag & BAM_FDUP || aln->core.flag & BAM_FSUPPLEMENTARY) 
 		return;
 
-	/*
-	std::cerr << "aln pos: " << aln->core.pos << "\t";
-	for (uint32_t i = 0; i < aln->core.n_cigar; ++i) {
-		std::cerr << bam_cigar_oplen(*(bam_get_cigar(aln) + i)) << "\t" << bam_cigar_op(*(bam_get_cigar(aln) + i)) << "\t";
-	}
-	std::cerr << std::endl;
-
-	//int32_t pos = aln->core.pos +1; //left most position of alignment in zero based coordianate (+1)
-	//char *chr = header->target_name[aln->core.tid] ; //contig name (chromosome)
-	//uint32_t len = aln->core.l_qseq; //length of the read.
-	//uint8_t *q = bam_get_seq(aln); //quality string
-	//uint32_t q2 = aln->core.qual ; //mapping quality
-	*/
-
 	++bam_data.total_read;
 	// Paired-end read
 	if (aln->core.flag & BAM_FPAIRED) ++bam_data.paired_reads;
@@ -207,7 +193,9 @@ void ProcessAlignment (SBamData & bam_data, const bam1_t * aln) {
 
 // Func: Process bam by giving bam filename, bam region and bin size.
 //       For each alignment, Function ProcessAlignment will extract info the alignment.
-void ProcessBam (const char * bam_filename, const Fastaq::SRegion & region, const int & bin) {
+//       HMM using read depths is also embedded.
+// @ref: We can access bases of the entire chromosome from ref.
+void ProcessBam (const char * bam_filename, const Fastaq::SRegion & region, const int & bin, const std::string & ref) {
 	samFile * bam_reader = sam_open(bam_filename, "r");
 
 	bam_hdr_t *header;
@@ -216,61 +204,39 @@ void ProcessBam (const char * bam_filename, const Fastaq::SRegion & region, cons
 
 	SBamData bam_data;
 	std::list <SReadDepth> hmm_rd; // The list to collect read depth info for HMM.
+	// idx must be okay. We have checked in Run().
+	hts_idx_t * idx = sam_index_load(bam_reader,  bam_filename);
+	const bool load_index = idx == NULL ? false : true;
 
-	// We parse regions in so this part of code is abandoned.
-	if (region.chr.empty()) { // the region is not set
-		int pre_bin = 0;
-		int pre_tid = 0;
-		while (sam_read1(bam_reader, header, aln) >= 0) {
-			// Enter a new chr.
-			if (aln->core.tid != pre_tid) {
-				pre_bin = 0;
-				pre_tid = aln->core.tid;
-			}
+	if (load_index) {
+		const std::string cat_region = region.chr + ":" + std::to_string(region.begin) + '-' +  std::to_string(region.end);
+		hts_itr_t * ite = sam_itr_querys(idx, header, cat_region.c_str());
+		int pre_bin = region.begin / bin;
+		while (ite && sam_itr_next(bam_reader, ite, aln) >= 0) {
 			const int cur_bin = aln->core.pos / bin;
-			if (cur_bin != pre_bin) {
+			// If the cur_bin is not the same as pre_bin, we clean up the pre_bin.
+			if ((cur_bin > pre_bin) && (cur_bin != pre_bin)) {
 				for (int i = pre_bin; i < cur_bin; ++i){
 					PrintCleanBamData(bam_data, hmm_rd, (i + 1) * bin - 1); // (i + 1) * bin - 1 for giving the max pos of the bin.
+					// Calculate the number of N's in this region.
+					hmm_rd.back().n_count = 0;
+					//TODO: The for loop seems slow.
+					for (std::string::const_iterator s_ite = std::next(ref.begin(), region.begin); 
+						s_ite != ref.end() && s_ite != std::next(ref.begin(), region.end); ++s_ite) {
+						if (*s_ite == 'N') 
+							++(hmm_rd.back().n_count);
+					}
 				}
 				pre_bin = cur_bin;
 			}
 			ProcessAlignment(bam_data, aln);
 		}
-	} else { // the region is given.
-		hts_idx_t * idx = sam_index_load(bam_reader,  bam_filename);
-		bool load_index = true;
-		if (idx == NULL) {
-			if (sam_index_build(bam_filename, 0) < 0) { // Try to build bam index
-				std::cerr << "ERROR: The region givin but bam index cannot be built and loaded." << std::endl;
-				load_index = false;
-			} else {
-				idx = sam_index_load(bam_reader,  bam_filename);
-			}
-			
-		}
 
-		if (load_index) {
-			const std::string cat_region = region.chr + ":" + std::to_string(region.begin) + '-' +  std::to_string(region.end);
-			hts_itr_t * ite = sam_itr_querys(idx, header, cat_region.c_str());
-			int pre_bin = region.begin / bin;
-			while (ite && sam_itr_next(bam_reader, ite, aln) >= 0) {
-				const int cur_bin = aln->core.pos / bin;
-				// If the cur_bin is not the same as pre_bin, we clean up the pre_bin.
-				if ((cur_bin > pre_bin) && (cur_bin != pre_bin)) {
-					for (int i = pre_bin; i < cur_bin; ++i){
-						PrintCleanBamData(bam_data, hmm_rd, (i + 1) * bin - 1); // (i + 1) * bin - 1 for giving the max pos of the bin.
-					}
-					pre_bin = cur_bin;
-				}
-				ProcessAlignment(bam_data, aln);
-			}
-	
-			// Clean up
-			hts_itr_destroy(ite);
-		}
-		
+		// Clean up
+		hts_itr_destroy(ite);
 	}
 	
+	// Perform HMM	
 	CallHmm::HmmAndViterbi(hmm_rd, bin);
 	//PrintCleanBamData(bam_data, std::numeric_limits<std::int32_t>::max());
 
@@ -282,8 +248,8 @@ void ProcessBam (const char * bam_filename, const Fastaq::SRegion & region, cons
 }
 
 void PrintResults(std::stringstream & bam_signal_out, std::stringstream & count_kmer_out, const bool have_count_kmer_out) {
-	std::cout << "#POS\tREADS\tPAIRED\tPROPER_PAIRS\tINPROPER_PAIRS\tMATE_UNMAPPED\tISIZE\tSOFTCLIPS\tREAD_DEPTH"
-			<< (!have_count_kmer_out ? "\n" : "\tKMER_COUNT\n");
+	//std::cout << "#POS\tREADS\tPAIRED\tPROPER_PAIRS\tINPROPER_PAIRS\tMATE_UNMAPPED\tISIZE\tSOFTCLIPS\tREAD_DEPTH"
+	//		<< (!have_count_kmer_out ? "\n" : "\tKMER_COUNT\n");
 	while (!bam_signal_out.eof()) { // The bam_signal_out is the major player here.
 		std::string tmp;
 		if (std::getline(bam_signal_out, tmp).eof()) break;
@@ -321,6 +287,7 @@ int GetCnvSignal::Run () const {
 	}
 
 	// Parse region.
+	// Parse region from the command line or parse regions from the bam header.
 	std::vector<Fastaq::SRegion> regions;
 	if (!cmdline.region.empty()) { // Parse region from the command line.
 		Fastaq::SRegion tmp_region;
@@ -357,13 +324,35 @@ int GetCnvSignal::Run () const {
 		sam_close(bam_reader);
 	}
 
+	// Check BAI
+	samFile * bam_reader = sam_open(cmdline.bam.c_str(), "r");
+	hts_idx_t * idx = sam_index_load(bam_reader,  cmdline.bam.c_str());
+	if (idx == NULL && sam_index_build(cmdline.bam.c_str(), 0) < 0) { // Try to build bam index
+		std::cerr << "ERROR: The region givin but bam index cannot be built and loaded." << std::endl;
+		sam_close(bam_reader);
+		return 1;
+	}
+	sam_close(bam_reader);
+
+	// Re-direct cout
 	coutbuf = std::cout.rdbuf(); //save old buf
 	std::stringstream bam_signal_out;
 	std::cout.rdbuf(bam_signal_out.rdbuf()); //redirect std::cout to bam_signal_out
 
 	// Process BAM by regions
+	std::string ref_seq;
+	std::string ref_name;
 	for (std::vector<Fastaq::SRegion>::const_iterator ite = regions.begin(); ite != regions.end(); ++ite) {
-		ProcessBam(cmdline.bam.c_str(), *ite, cmdline.bin);
+		// The chromosome is not in ref. Load it from fasta.
+		if (ref_name != ite->chr) {
+			ref_name = ite->chr; // Keep the new chr name.
+			// Load a complete seq of the chromosome.
+			if (!Fastaq::FastaLoad(ref_seq, cmdline.fasta.c_str(), true, ite->chr.c_str())) {
+				std::cerr << "ERROR: Cannot load chromosome " << ite->chr << " from " << cmdline.fasta << std::endl;
+				return 1;
+			}
+		}
+		ProcessBam(cmdline.bam.c_str(), *ite, cmdline.bin, ref_seq);
 	}
 	std::cout.rdbuf(coutbuf); //reset to standard output again
 
@@ -377,6 +366,7 @@ int GetCnvSignal::Run () const {
 		std::cout.rdbuf(coutbuf); //reset to standard output again
 		ofs.close();
 	} else {
+		;
 		PrintResults(bam_signal_out, count_kmer_out, (!cmdline.input_jfdb.empty() && !cmdline.fasta.empty()));
 	}
 	return 0;

@@ -50,9 +50,12 @@ void SmoothStats(const std::list <SReadDepth>& read_depth, const int bin_size, c
 	};
 	std::list <hmm_stats> result;
 	std::list <SReadDepth>::const_iterator rd_ite = read_depth.begin();
+	// Ccollapse stats.
 	for (int i = 1; i <= T; ++i, ++rd_ite) {
-		if (result.empty() || q[i] != result.back().stats) { // Create the init hmm_stats.
-			hmm_stats tmp(rd_ite->pos, q[i], 0);
+		// If there are >50% N's in the region, the region won't be taken in account so we set the stats to NORMAL.
+		int cur_stat = rd_ite->n_count > bin_size * 0.5 ? 3 : q[i];
+		if (result.empty() || cur_stat != result.back().stats) { // Create the init hmm_stats.
+			hmm_stats tmp(rd_ite->pos, cur_stat, 0);
 			result.push_back(tmp);
 		}
 		++result.back().length;
@@ -85,7 +88,7 @@ void SmoothStats(const std::list <SReadDepth>& read_depth, const int bin_size, c
 #endif
 
 	for (std::list <hmm_stats>::const_iterator ite = smooth_result.begin(); ite != smooth_result.end(); ++ite) {
-		if (ite->length * bin_size > 300000 && ite->stats != 3)
+		if (ite->stats != 3 && ite->length * bin_size > 300000)
 			std::cout << ite->pos << "\t" << ite->stats << "\t" << ite->length << std::endl;
 	}
 }

@@ -50,12 +50,12 @@ struct SGetCnvSignalCml {
 			std::cerr << "ERROR: --bin <INT> should not smaller than 1." << std::endl;
 			ok = false;
 		}
-		if (!input_jfdb.empty() && fasta.empty()) {
-			std::cerr << "ERROR: -f <FASTA> is required when -i <jellyfish_db> is given." << std::endl;
-			ok = false;
-		}
 		if (bam.empty()) {
 			std::cerr << "ERROR: -b <BAM> is required." << std::endl;
+			ok = false;
+		}
+		if (fasta.empty()) {
+			std::cerr << "ERROR: -f <FASTA> is required." << std::endl;
 			ok = false;
 		}
 
