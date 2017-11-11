@@ -216,6 +216,7 @@ void ProcessBam (const char * bam_filename, const Fastaq::SRegion & region, cons
 			const int cur_bin = aln->core.pos / bin;
 			// If the cur_bin is not the same as pre_bin, we clean up the pre_bin.
 			if ((cur_bin > pre_bin) && (cur_bin != pre_bin)) {
+				// Every bin in the region between pre_bin and cur_bin will be padded.
 				for (int i = pre_bin; i < cur_bin; ++i){
 					PrintCleanBamData(bam_data, hmm_rd, (i + 1) * bin - 1); // (i + 1) * bin - 1 for giving the max pos of the bin.
 					// Calculate the number of N's in this region.
@@ -247,17 +248,17 @@ void ProcessBam (const char * bam_filename, const Fastaq::SRegion & region, cons
 	bam_data.Clean();
 }
 
-void PrintResults(std::stringstream & bam_signal_out, std::stringstream & count_kmer_out, const bool have_count_kmer_out) {
-	std::cout << "#POS\tREADS\tPAIRED\tPROPER_PAIRS\tINPROPER_PAIRS\tMATE_UNMAPPED\tISIZE\tSOFTCLIPS\tREAD_DEPTH"
+void PrintResults(std::ofstream & log, std::stringstream & bam_signal_out, std::stringstream & count_kmer_out, const bool have_count_kmer_out) {
+	log << "#POS\tREADS\tPAIRED\tPROPER_PAIRS\tINPROPER_PAIRS\tMATE_UNMAPPED\tISIZE\tSOFTCLIPS\tREAD_DEPTH"
 			<< (!have_count_kmer_out ? "\n" : "\tKMER_COUNT\n");
 	while (!bam_signal_out.eof()) { // The bam_signal_out is the major player here.
 		std::string tmp;
 		if (std::getline(bam_signal_out, tmp).eof()) break;
-		std::cout << tmp;
+		log << tmp;
 		if (have_count_kmer_out && !std::getline(count_kmer_out, tmp).eof()) {
-			std::cout << "\t" << tmp;
+			log << "\t" << tmp;
 		}
-		std::cout << std::endl;
+		log << std::endl;
 	}
 }
 } // namespace
@@ -273,6 +274,8 @@ int GetCnvSignal::Run () const {
 		return 1;
 	}
 
+	// coutbuf for storing the result of count_kmer.
+	// Since count_kmer prints out result on std::cout, we need to redirect std::cout buffer.
 	std::streambuf * coutbuf = std::cout.rdbuf(); //save old buf
 	std::stringstream count_kmer_out;
 	// Perform CountKmer
@@ -356,18 +359,13 @@ int GetCnvSignal::Run () const {
 	}
 	std::cout.rdbuf(coutbuf); //reset to standard output again
 
-	// Open output if given.
-	if (!cmdline.output.empty()) {
-		coutbuf = std::cout.rdbuf(); //save old buf
-		std::ofstream ofs;
-		ofs.open(cmdline.output, std::ofstream::out);
-		std::cout.rdbuf(ofs.rdbuf()); //redirect std::cout to file;
-		PrintResults(bam_signal_out, count_kmer_out, (!cmdline.input_jfdb.empty() && !cmdline.fasta.empty()));
-		std::cout.rdbuf(coutbuf); //reset to standard output again
-		ofs.close();
-	} else {
-		;
-		PrintResults(bam_signal_out, count_kmer_out, (!cmdline.input_jfdb.empty() && !cmdline.fasta.empty()));
+	// Open a file for outputing log
+	if (!cmdline.log.empty()) {
+		std::ofstream log;
+		log.open(cmdline.log, std::ofstream::out);
+		PrintResults(log, bam_signal_out, count_kmer_out, (!cmdline.input_jfdb.empty() && !cmdline.fasta.empty()));
+		log.close();
 	}
+
 	return 0;
 }

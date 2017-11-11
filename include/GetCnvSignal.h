@@ -18,8 +18,9 @@ struct SGetCnvSignalCml {
 
 	// operation parameters
 	std::string region;     // -r --region
-	int bin = 1;
 	bool ascii = false;	// --ascii
+	int bin = 1;		// --bin
+	std::string log;	// --log
 	
 	// command line
 	std::string cmd;
@@ -40,7 +41,8 @@ struct SGetCnvSignalCml {
 		std::string("Operations:\n") +
 		std::string("	-r --region chr:begin-end	Specify a target region.\n") +
 		std::string("   --ascii				Report kmer count in ASCII: (log2(#) + 1) + 33.\n") +
-		std::string("	--bin <INT>			Report a result for each # bp. [1]\n");
+		std::string("	--bin <INT>			Report a result for each # bp. [1]\n") +
+		std::string("   --log <FILE>			Log output.\n");
 	}
 
 	// Check the required arguments.
@@ -68,15 +70,16 @@ struct SGetCnvSignalCml {
 		const struct option long_option[] = {
 			{"help", required_argument, NULL, 'h'},
 			// i/o
+			{"bam", required_argument, NULL, 'b'},
 			{"input", required_argument, NULL, 'i'},
 			{"fasta", required_argument, NULL, 'f'},
-			{"bam", required_argument, NULL, 'b'},
 			{"output", required_argument, NULL, 'o'},
 
 			// operation parameters
 			{"region", required_argument, NULL, 'r'},
-			{"bin", required_argument, NULL, 1},
-			{"ascii", no_argument, NULL, 2},
+			{"ascii", no_argument, NULL, 1},
+			{"bin", required_argument, NULL, 2},
+			{"log", required_argument, NULL, 3},
 			{0,0,0,0}
 		};
 		int option_index = 0;
@@ -89,8 +92,9 @@ struct SGetCnvSignalCml {
 				case 'b': bam = optarg; break;
 				case 'o': output = optarg; break;
 				case 'r': region = optarg; break;
-				case 1: bin = atoi(optarg); break;
-				case 2: ascii = true; break;
+				case 1: ascii = true; break;
+				case 2: bin = atoi(optarg); break;
+				case 3: log = optarg; break;
 				default: std::cerr << "WARNING: Unkonw parameter: " << long_option[option_index].name << std::endl; break;
 			}
 		}
