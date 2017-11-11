@@ -57,9 +57,8 @@ void PrintCleanBamData (SBamData & bam_data, std::list <SReadDepth> & hmm_rd, co
 	// If the max_pos means the last element.
 	const int cur_pos = !bam_data.read_depth.empty() && max_pos == std::numeric_limits<std::int32_t>::max()
 				? bam_data.read_depth.back().pos : max_pos;
-//	std::cout << cur_pos << "\t";
+	std::cout << cur_pos << "\t";
 
-/*
 	if (bam_data.total_read == 0) {
 		std::cout << "0\t0\t0\t0\t0\t0\t0\t";
 	} else {
@@ -80,7 +79,7 @@ void PrintCleanBamData (SBamData & bam_data, std::list <SReadDepth> & hmm_rd, co
 			sum += *ite;
 		std::cout << sum / static_cast<double>(bam_data.total_read) << "\t";
 	}
-*/
+
 	// Read depth
 	uint64_t sum = 0;
 	unsigned int pos_count = 0;
@@ -89,7 +88,7 @@ void PrintCleanBamData (SBamData & bam_data, std::list <SReadDepth> & hmm_rd, co
 		sum += bam_data.read_depth.front().count;
 		bam_data.read_depth.pop_front();
 	}
-	//std::cout << (pos_count == 0 ? 0 : sum / static_cast<double>(pos_count)) << std::endl;
+	std::cout << (pos_count == 0 ? 0 : sum / static_cast<double>(pos_count)) << std::endl;
 
 	SReadDepth rd_tmp(cur_pos, round(sum / static_cast<double>(pos_count)));
 	hmm_rd.push_back(rd_tmp);
@@ -208,6 +207,7 @@ void ProcessBam (const char * bam_filename, const Fastaq::SRegion & region, cons
 	hts_idx_t * idx = sam_index_load(bam_reader,  bam_filename);
 	const bool load_index = idx == NULL ? false : true;
 
+
 	if (load_index) {
 		const std::string cat_region = region.chr + ":" + std::to_string(region.begin) + '-' +  std::to_string(region.end);
 		hts_itr_t * ite = sam_itr_querys(idx, header, cat_region.c_str());
@@ -221,8 +221,8 @@ void ProcessBam (const char * bam_filename, const Fastaq::SRegion & region, cons
 					// Calculate the number of N's in this region.
 					hmm_rd.back().n_count = 0;
 					//TODO: The for loop seems slow.
-					for (std::string::const_iterator s_ite = std::next(ref.begin(), region.begin); 
-						s_ite != ref.end() && s_ite != std::next(ref.begin(), region.end); ++s_ite) {
+					for (std::string::const_iterator s_ite = std::next(ref.begin(), pre_bin * bin); 
+						s_ite != ref.end() && s_ite != std::next(ref.begin(), (pre_bin + 1) * bin - 1); ++s_ite) {
 						if (*s_ite == 'N') 
 							++(hmm_rd.back().n_count);
 					}
@@ -248,8 +248,8 @@ void ProcessBam (const char * bam_filename, const Fastaq::SRegion & region, cons
 }
 
 void PrintResults(std::stringstream & bam_signal_out, std::stringstream & count_kmer_out, const bool have_count_kmer_out) {
-	//std::cout << "#POS\tREADS\tPAIRED\tPROPER_PAIRS\tINPROPER_PAIRS\tMATE_UNMAPPED\tISIZE\tSOFTCLIPS\tREAD_DEPTH"
-	//		<< (!have_count_kmer_out ? "\n" : "\tKMER_COUNT\n");
+	std::cout << "#POS\tREADS\tPAIRED\tPROPER_PAIRS\tINPROPER_PAIRS\tMATE_UNMAPPED\tISIZE\tSOFTCLIPS\tREAD_DEPTH"
+			<< (!have_count_kmer_out ? "\n" : "\tKMER_COUNT\n");
 	while (!bam_signal_out.eof()) { // The bam_signal_out is the major player here.
 		std::string tmp;
 		if (std::getline(bam_signal_out, tmp).eof()) break;

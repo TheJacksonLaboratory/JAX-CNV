@@ -48,12 +48,19 @@ void SmoothStats(const std::list <SReadDepth>& read_depth, const int bin_size, c
 		unsigned int stats;
 		unsigned int length;
 	};
+
+	if (read_depth.size() != T) {
+		std::cerr << "ERROR: HMM read_depth's size does not match with the number of stats." << std::endl;
+		return;
+	}
+
 	std::list <hmm_stats> result;
 	std::list <SReadDepth>::const_iterator rd_ite = read_depth.begin();
 	// Ccollapse stats.
 	for (int i = 1; i <= T; ++i, ++rd_ite) {
 		// If there are >50% N's in the region, the region won't be taken in account so we set the stats to NORMAL.
-		int cur_stat = rd_ite->n_count > bin_size * 0.5 ? 3 : q[i];
+		int cur_stat = (rd_ite->n_count > (bin_size * 0.5)) ? 3 : q[i];
+		//std::cerr << rd_ite->pos << "\t" << rd_ite->n_count << "\t" << cur_stat << "\t" << q[i] << std::endl;
 		if (result.empty() || cur_stat != result.back().stats) { // Create the init hmm_stats.
 			hmm_stats tmp(rd_ite->pos, cur_stat, 0);
 			result.push_back(tmp);
@@ -61,12 +68,12 @@ void SmoothStats(const std::list <SReadDepth>& read_depth, const int bin_size, c
 		++result.back().length;
 	}
 
-#ifdef DEBUG
+//#ifdef DEBUG
 	std::cerr << "HMM before smoothing" << std::endl;
 	for (std::list <hmm_stats>::const_iterator ite = result.begin(); ite != result.end(); ++ite) {
-		std::cout << ite->pos << "\t" << ite->stats << "\t" << ite->length << std::endl;
+		std::cerr << ite->pos << "\t" << ite->stats << "\t" << ite->length << std::endl;
 	}
-#endif
+//#endif
 
 	std::list <hmm_stats> smooth_result;
 	smooth_result.push_back(result.front());
@@ -80,16 +87,16 @@ void SmoothStats(const std::list <SReadDepth>& read_depth, const int bin_size, c
 		}
 	}
 
-#ifdef DEBUG
+//#ifdef DEBUG
 	std::cerr << "HMM after smoothing" << std::endl;
 	for (std::list <hmm_stats>::const_iterator ite = smooth_result.begin(); ite != smooth_result.end(); ++ite) {
-		std::cout << ite->pos << "\t" << ite->stats << "\t" << ite->length << std::endl;
+		std::cerr << ite->pos << "\t" << ite->stats << "\t" << ite->length << std::endl;
 	}
-#endif
+//#endif
 
 	for (std::list <hmm_stats>::const_iterator ite = smooth_result.begin(); ite != smooth_result.end(); ++ite) {
 		if (ite->stats != 3 && ite->length * bin_size > 300000)
-			std::cout << ite->pos << "\t" << ite->stats << "\t" << ite->length << std::endl;
+			std::cout << ite->pos << "\t" << ite->stats << "\t" << ite->length*bin_size+ite->pos-1 << "\t" << ite->length*bin_size << std::endl;
 	}
 }
 } // namespace
@@ -98,11 +105,15 @@ namespace CallHmm {
 bool HmmAndViterbi (const std::list <SReadDepth>& read_depth, const int bin_size) {
 	if (read_depth.empty()) return false;
 
+	// TODO: Need a program to calculate it.
+	const double est_rd = 50.0;
+
 	// Init HMM
 	int T = read_depth.size();
 	int* O = new int [T + 1]; // observation sequence O[1..T]
 	for (std::list <SReadDepth>::const_iterator ite = read_depth.begin(); ite != read_depth.end(); ++ite) {
-		O[std::distance(read_depth.begin(), ite) + 1] = ite->count;
+		const int tmp_o = round(ite->count / est_rd) * 50;
+		O[std::distance(read_depth.begin(), ite) + 1] = std::min(tmp_o, 180);
 	}
 
 	HMM hmm;
