@@ -221,8 +221,8 @@ void ProcessBam (std::list <SReadDepth> & hmm_rd, const char * bam_filename, con
 					// Calculate the number of N's in this region.
 					hmm_rd.back().n_count = 0;
 					//TODO: The for loop seems slow.
-					for (std::string::const_iterator s_ite = std::next(ref.begin(), pre_bin * bin); 
-						s_ite != ref.end() && s_ite != std::next(ref.begin(), (pre_bin + 1) * bin - 1); ++s_ite) {
+					for (std::string::const_iterator s_ite = std::next(ref.begin(), i * bin); 
+						s_ite != ref.end() && s_ite != std::next(ref.begin(), (i + 1) * bin - 1); ++s_ite) {
 						if (*s_ite == 'N') 
 							++(hmm_rd.back().n_count);
 					}
@@ -358,6 +358,7 @@ int GetCnvSignal::Run () const {
 	for (std::list<Fastaq::SRegion>::const_iterator ite = regions.begin(); ite != regions.end(); ++ite) {
 		// The chromosome is not in ref. Load it from fasta.
 		if (ref_name != ite->chr) {
+			std::cerr << "chr: " << ite->chr << std::endl;
 			ref_name = ite->chr; // Keep the new chr name.
 			// Load a complete seq of the chromosome.
 			if (!Fastaq::FastaLoad(ref_seq, cmdline.fasta.c_str(), true, ite->chr.c_str())) {

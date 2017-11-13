@@ -10,6 +10,7 @@
 namespace {
 void PrintHmm (const HMM& hmm, const int& T, const int* O) {
 	std::cerr << "DEBUG: CallHmm::HmmAndViterbi" << std::endl;
+	std::cerr << "=====Start HMM table printing=====" << std::endl;
 	std::cerr << "N, M: " << hmm.N << ", " << hmm.M << std::endl;
 	std::cerr << "A" << std::endl;
 	for (int i = 0; i < hmm.N; ++i) {
@@ -39,6 +40,7 @@ void PrintHmm (const HMM& hmm, const int& T, const int* O) {
 		std::cerr << O[i] << " ";
 	}
 	std::cerr << std::endl;
+	std::cerr << "=====End HMM table printing=====" << std::endl;
 }
 
 void SmoothStats(const std::list <SReadDepth>& read_depth, const int bin_size, const int* q, const int T) {
@@ -59,6 +61,9 @@ void SmoothStats(const std::list <SReadDepth>& read_depth, const int bin_size, c
 	// Ccollapse stats.
 	for (int i = 1; i <= T; ++i, ++rd_ite) {
 		// If there are >50% N's in the region, the region won't be taken in account so we set the stats to NORMAL.
+#ifdef DEBUG
+		std::cerr << rd_ite->pos << "\t" << rd_ite->n_count << "\t" << ((rd_ite->n_count > (bin_size * 0.5)) ? 3 : q[i]) << std::endl;
+#endif
 		int cur_stat = (rd_ite->n_count > (bin_size * 0.5)) ? 3 : q[i];
 		//std::cerr << rd_ite->pos << "\t" << rd_ite->n_count << "\t" << cur_stat << "\t" << q[i] << std::endl;
 		if (result.empty() || cur_stat != result.back().stats) { // Create the init hmm_stats.
