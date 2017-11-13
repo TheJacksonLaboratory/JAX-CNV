@@ -194,7 +194,7 @@ void ProcessAlignment (SBamData & bam_data, const bam1_t * aln) {
 //       For each alignment, Function ProcessAlignment will extract info the alignment.
 //       HMM using read depths is also embedded.
 // @ref: We can access bases of the entire chromosome from ref.
-void ProcessBam (const char * bam_filename, const Fastaq::SRegion & region, const int & bin, const std::string & ref) {
+void ProcessBam (std::list <SReadDepth> & hmm_rd, const char * bam_filename, const Fastaq::SRegion & region, const int & bin, const std::string & ref) {
 	samFile * bam_reader = sam_open(bam_filename, "r");
 
 	bam_hdr_t *header;
@@ -202,7 +202,6 @@ void ProcessBam (const char * bam_filename, const Fastaq::SRegion & region, cons
 	bam1_t * aln = bam_init1();
 
 	SBamData bam_data;
-	std::list <SReadDepth> hmm_rd; // The list to collect read depth info for HMM.
 	// idx must be okay. We have checked in Run().
 	hts_idx_t * idx = sam_index_load(bam_reader,  bam_filename);
 	const bool load_index = idx == NULL ? false : true;
@@ -237,8 +236,6 @@ void ProcessBam (const char * bam_filename, const Fastaq::SRegion & region, cons
 		hts_itr_destroy(ite);
 	}
 	
-	// Perform HMM	
-	CallHmm::HmmAndViterbi(hmm_rd, bin);
 	//PrintCleanBamData(bam_data, std::numeric_limits<std::int32_t>::max());
 
 	// Clean up
@@ -355,7 +352,11 @@ int GetCnvSignal::Run () const {
 				return 1;
 			}
 		}
-		ProcessBam(cmdline.bam.c_str(), *ite, cmdline.bin, ref_seq);
+		std::list <SReadDepth> hmm_rd; // The list to collect read depth info for HMM.
+		ProcessBam(hmm_rd,cmdline.bam.c_str(), *ite, cmdline.bin, ref_seq);
+		// Perform HMM	
+		CallHmm::HmmAndViterbi(hmm_rd, cmdline.bin);
+		
 	}
 	std::cout.rdbuf(coutbuf); //reset to standard output again
 

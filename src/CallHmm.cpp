@@ -68,12 +68,12 @@ void SmoothStats(const std::list <SReadDepth>& read_depth, const int bin_size, c
 		++result.back().length;
 	}
 
-//#ifdef DEBUG
+#ifdef DEBUG
 	std::cerr << "HMM before smoothing" << std::endl;
 	for (std::list <hmm_stats>::const_iterator ite = result.begin(); ite != result.end(); ++ite) {
 		std::cerr << ite->pos << "\t" << ite->stats << "\t" << ite->length << std::endl;
 	}
-//#endif
+#endif
 
 	std::list <hmm_stats> smooth_result;
 	smooth_result.push_back(result.front());
@@ -87,16 +87,16 @@ void SmoothStats(const std::list <SReadDepth>& read_depth, const int bin_size, c
 		}
 	}
 
-//#ifdef DEBUG
+#ifdef DEBUG
 	std::cerr << "HMM after smoothing" << std::endl;
 	for (std::list <hmm_stats>::const_iterator ite = smooth_result.begin(); ite != smooth_result.end(); ++ite) {
 		std::cerr << ite->pos << "\t" << ite->stats << "\t" << ite->length << std::endl;
 	}
-//#endif
+#endif
 
 	for (std::list <hmm_stats>::const_iterator ite = smooth_result.begin(); ite != smooth_result.end(); ++ite) {
-		if (ite->stats != 3 && ite->length * bin_size > 300000)
-			std::cout << ite->pos << "\t" << ite->stats << "\t" << ite->length*bin_size+ite->pos-1 << "\t" << ite->length*bin_size << std::endl;
+		if (ite->stats != 3 && ite->length * bin_size > 250000)
+			std::cerr << ite->pos << "\t" << ite->stats << "\t" << ite->length*bin_size+ite->pos-1 << "\t" << ite->length*bin_size << std::endl;
 	}
 }
 } // namespace
@@ -112,7 +112,7 @@ bool HmmAndViterbi (const std::list <SReadDepth>& read_depth, const int bin_size
 	int T = read_depth.size();
 	int* O = new int [T + 1]; // observation sequence O[1..T]
 	for (std::list <SReadDepth>::const_iterator ite = read_depth.begin(); ite != read_depth.end(); ++ite) {
-		const int tmp_o = round(ite->count / est_rd) * 50;
+		const int tmp_o = round(ite->count / est_rd * 50);
 		O[std::distance(read_depth.begin(), ite) + 1] = std::min(tmp_o, 180);
 	}
 
