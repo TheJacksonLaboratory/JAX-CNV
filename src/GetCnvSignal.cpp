@@ -325,6 +325,17 @@ int GetCnvSignal::Run () const {
 		bam_hdr_destroy(header);
 		sam_close(bam_reader);
 	}
+	// Divide regions into 5M block if it is larger than 5M.
+	// HMM seems to get much faster performance for smaller regions.
+	for (std::list<Fastaq::SRegion>::iterator ite = regions.begin(); ite != regions.end(); ++ite) {
+		if (ite->end - ite->begin + 1 > 5000000) {
+			Fastaq::SRegion tmp;
+			tmp = *ite;
+			ite->end = ite->begin + 5000000 - 1;
+			tmp.begin = ite->end + 1;
+			regions.insert(std::next(ite), tmp);
+		}
+	}
 
 	// Check BAI
 	samFile * bam_reader = sam_open(cmdline.bam.c_str(), "r");
