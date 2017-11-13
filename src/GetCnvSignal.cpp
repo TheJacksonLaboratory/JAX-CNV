@@ -288,13 +288,15 @@ int GetCnvSignal::Run () const {
 
 	// Parse region.
 	// Parse region from the command line or parse regions from the bam header.
-	std::vector<Fastaq::SRegion> regions;
+	std::list<Fastaq::SRegion> regions;
 	if (!cmdline.region.empty()) { // Parse region from the command line.
 		Fastaq::SRegion tmp_region;
 		if (!tmp_region.Parse(cmdline.region)) {
 			std::cerr << "ERROR: The given region is not valid." << std::endl;
 			return 1;
 		}
+		// Only chromosome name is given.
+		// Need to find the length of the chromosome.
 		if (tmp_region.begin == 0 && tmp_region.end == 0) {
 			// Load bam header
 			samFile * bam_reader = sam_open(cmdline.bam.c_str(), "r");
@@ -342,7 +344,7 @@ int GetCnvSignal::Run () const {
 	// Process BAM by regions
 	std::string ref_seq;
 	std::string ref_name;
-	for (std::vector<Fastaq::SRegion>::const_iterator ite = regions.begin(); ite != regions.end(); ++ite) {
+	for (std::list<Fastaq::SRegion>::const_iterator ite = regions.begin(); ite != regions.end(); ++ite) {
 		// The chromosome is not in ref. Load it from fasta.
 		if (ref_name != ite->chr) {
 			ref_name = ite->chr; // Keep the new chr name.
