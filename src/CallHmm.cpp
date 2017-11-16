@@ -107,17 +107,14 @@ void SmoothStats(const std::list <SReadDepth>& read_depth, const int bin_size, c
 } // namespace
 
 namespace CallHmm { 
-bool HmmAndViterbi (const std::list <SReadDepth>& read_depth, const int bin_size) {
+bool HmmAndViterbi (const std::list <SReadDepth>& read_depth, const int & bin_size, const double & coverage) {
 	if (read_depth.empty()) return false;
-
-	// TODO: Need a program to calculate it.
-	const double est_rd = 50.0;
 
 	// Init HMM
 	int T = read_depth.size();
 	int* O = new int [T + 1]; // observation sequence O[1..T]
 	for (std::list <SReadDepth>::const_iterator ite = read_depth.begin(); ite != read_depth.end(); ++ite) {
-		const int tmp_o = round(ite->count / est_rd * 50);
+		const int tmp_o = round(ite->count / coverage * 50);
 		O[std::distance(read_depth.begin(), ite) + 1] = std::min(tmp_o, 180);
 	}
 

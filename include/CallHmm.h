@@ -4,7 +4,7 @@
 #include "ReadDepth.h"
 
 namespace CallHmm {
-bool HmmAndViterbi (const std::list <SReadDepth>& read_depth, const int bin_size);
+bool HmmAndViterbi (const std::list <SReadDepth>& read_depth, const int & bin_size, const double & coverage);
 
 //namespace ReadDepthHmm { 
 const int hmm_N = 5;

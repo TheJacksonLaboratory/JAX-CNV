@@ -369,7 +369,7 @@ int GetCnvSignal::Run () const {
 		std::list <SReadDepth> hmm_rd; // The list to collect read depth info for HMM.
 		ProcessBam(hmm_rd,cmdline.bam.c_str(), *ite, cmdline.bin, ref_seq);
 		// Perform HMM	
-		CallHmm::HmmAndViterbi(hmm_rd, cmdline.bin);
+		CallHmm::HmmAndViterbi(hmm_rd, cmdline.bin, cmdline.coverage);
 		
 	}
 	std::cout.rdbuf(coutbuf); //reset to standard output again
