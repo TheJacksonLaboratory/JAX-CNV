@@ -7,7 +7,7 @@
 #include <cstdint>
 
 // Self include
-#include "CountKmer.h"
+#include "GrabJellyfishKmer.h"
 #include "GetCnvSignal.h"
 #include "ReadDepth.h"
 #include "CallHmm.h"
@@ -275,12 +275,12 @@ int GetCnvSignal::Run () const {
 	// Since count_kmer prints out result on std::cout, we need to redirect std::cout buffer.
 	std::streambuf * coutbuf = std::cout.rdbuf(); //save old buf
 	std::stringstream count_kmer_out;
-	// Perform CountKmer
+	// Perform GrabJellyfishKmer
 	if (!cmdline.input_jfdb.empty() && !cmdline.fasta.empty()) {
 		std::cout.rdbuf(count_kmer_out.rdbuf()); //redirect std::cout to count_kmer_out
 		// rle = false
 		// output is controlled by count_kmer_out
-		CountKmer count_kmer(cmdline.input_jfdb.c_str(), cmdline.fasta.c_str(), NULL, 
+		GrabJellyfishKmer count_kmer(cmdline.input_jfdb.c_str(), cmdline.fasta.c_str(), NULL, 
 					cmdline.region.c_str(), cmdline.bin, cmdline.ascii, false);
 		count_kmer.Run();
 		std::cout.rdbuf(coutbuf); //reset to standard output again

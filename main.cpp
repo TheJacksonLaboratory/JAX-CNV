@@ -4,7 +4,7 @@
 #include <string>
 
 // Self include
-#include "CountKmer.h"
+#include "GrabJellyfishKmer.h"
 #include "GetCnvSignal.h"
 
 struct SubCommand {
@@ -15,7 +15,7 @@ struct SubCommand {
 		std::string("\n") +
 		std::string("USAGE: ") + program + std::string(" <command> [options]\n\n") +
 		std::string("Commands:\n") +
-		std::string("\tCountKmer	Report the count of kmer giving Jellyfish database and a FASTA.\n") +
+		std::string("\tGrabJellyfishKmer	Report the count of kmer giving Jellyfish database and a FASTA.\n") +
 		std::string("\tGetCnvSignal	Report CNV signals such as read depth and kmer count.\n");
 	}
 };
@@ -41,8 +41,8 @@ int main (int argc, char** argv) {
 		std::cerr << cml_option.Help(argv[0]) << std::endl;
 		return 1;
 	} else { // Get the valid subcommand
-		if (command == "CountKmer") {
-			CountKmer count_kmer(argc - 1, argv + 1);
+		if (command == "GrabJellyfishKmer") {
+			GrabJellyfishKmer count_kmer(argc - 1, argv + 1);
 			count_kmer.Run();
 		} else if (command == "GetCnvSignal") {
 			GetCnvSignal get_cnv_signal(argc - 1, argv + 1);
