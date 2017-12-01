@@ -26,7 +26,7 @@ struct SGetCnvSignalCml {
 	// command line
 	std::string cmd;
 
-	const char* short_option = "hi:f:b:o:r:";
+	const char* short_option = "hb:i:f:o:c:r:";
 
 	// Help list
 	const std::string Help (const char* program) const { return
@@ -82,6 +82,7 @@ struct SGetCnvSignalCml {
 			{"output", required_argument, NULL, 'o'},
 
 			// operation parameters
+			{"coverage", required_argument, NULL, 'c'},
 			{"region", required_argument, NULL, 'r'},
 			{"ascii", no_argument, NULL, 1},
 			{"bin", required_argument, NULL, 2},
@@ -97,6 +98,7 @@ struct SGetCnvSignalCml {
 				case 'f': fasta = optarg; break;
 				case 'b': bam = optarg; break;
 				case 'o': output = optarg; break;
+				case 'c': coverage = atof(optarg); break;
 				case 'r': region = optarg; break;
 				case 1: ascii = true; break;
 				case 2: bin = atoi(optarg); break;
