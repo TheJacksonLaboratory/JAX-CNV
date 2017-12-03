@@ -17,7 +17,8 @@ struct SubCommand {
 		std::string("USAGE: ") + program + std::string(" <command> [options]\n\n") +
 		std::string("Commands:\n") +
 		std::string("\tGrabJellyfishKmer	Report the count of kmer giving Jellyfish database and a FASTA.\n") +
-		std::string("\tGetCnvSignal	Report CNV signals such as read depth and kmer count.\n");
+		std::string("\tGetCnvSignal	Report CNV signals such as read depth and kmer count.\n")+
+		std::string("\tGenerateKmer	Generate a kmer table by giving a FASTA. The kmer is shown by log2(kmer)+1.\n");
 	}
 };
 
