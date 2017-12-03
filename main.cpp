@@ -6,6 +6,7 @@
 // Self include
 #include "GrabJellyfishKmer.h"
 #include "GetCnvSignal.h"
+#include "GenerateKmer.h"
 
 struct SubCommand {
 	const unsigned int no_sub_commands = 2;
@@ -47,6 +48,10 @@ int main (int argc, char** argv) {
 		} else if (command == "GetCnvSignal") {
 			GetCnvSignal get_cnv_signal(argc - 1, argv + 1);
 			get_cnv_signal.Run();
+		}
+		else if (command == "GenerateKmer") {
+			GenerateKmer generate_kmer(argc - 1, argv + 1);
+			generate_kmer.Run();
 		}
 	}
 
