@@ -9,8 +9,8 @@
 #include "GenerateKmer.h"
 
 struct SubCommand {
-	const unsigned int no_sub_commands = 2;
-	const std::string sub_commands[2] = {"CountKmer", "GetCnvSignal"};
+	const unsigned int no_sub_commands = 3;
+	const std::string sub_commands[3] = {"CountKmer", "GetCnvSignal", "GenerateKmer"};
 
 	const std::string Help (const char* program) const { return
 		std::string("\n") +
@@ -18,7 +18,7 @@ struct SubCommand {
 		std::string("Commands:\n") +
 		std::string("\tGrabJellyfishKmer	Report the count of kmer giving Jellyfish database and a FASTA.\n") +
 		std::string("\tGetCnvSignal	Report CNV signals such as read depth and kmer count.\n")+
-		std::string("\tGenerateKmer	Generate a kmer table by giving a FASTA. The kmer is shown by log2(kmer)+1.\n");
+		std::string("\tGenerateKmer	Generate a kmer table by giving a FASTA. The kmer is shown by ascii code of log2(kmer)+34.\n");
 	}
 };
 

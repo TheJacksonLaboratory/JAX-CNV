@@ -67,11 +67,14 @@ int GenerateKmer::Run() const
 	}
 	
 	for (std::vector<std::string>::const_iterator name_ite = ref_names.begin(); name_ite != ref_names.end(); ++name_ite) {
-		std::cout << *name_ite << std::endl;
+		unsigned int chr_no = 1;
+		std::cout << ">" << *name_ite << std::endl;
 		for (std::list<uint64_t>::const_iterator kmer_ite = table_ite->begin(); kmer_ite != table_ite->end(); ++kmer_ite) {
+			if (chr_no % 60 == 0) std::cout << std::endl;
+			++chr_no;
 			std::cout << CeilLog2(*kmer_ite);
 		}
-		std::cout << std::endl;
+		if (chr_no % 60 != 0) std::cout << std::endl;
 		++table_ite;
 	}
 
