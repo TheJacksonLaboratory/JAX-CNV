@@ -10,6 +10,7 @@
 #include "GrabJellyfishKmer.h"
 #include "GetCnvSignal.h"
 #include "ReadDepth.h"
+#include "hmm_stats.h"
 #include "CallHmm.h"
 
 
@@ -355,6 +356,7 @@ int GetCnvSignal::Run () const {
 	// Process BAM by regions
 	std::string ref_seq;
 	std::string ref_name;
+	std::list<hmm_stats> cnvs;
 	for (std::list<Fastaq::SRegion>::const_iterator ite = regions.begin(); ite != regions.end(); ++ite) {
 		// The chromosome is not in ref. Load it from fasta.
 		if (ref_name != ite->chr) {
@@ -369,7 +371,7 @@ int GetCnvSignal::Run () const {
 		std::list <SReadDepth> hmm_rd; // The list to collect read depth info for HMM.
 		ProcessBam(hmm_rd,cmdline.bam.c_str(), *ite, cmdline.bin, ref_seq);
 		// Perform HMM	
-		CallHmm::HmmAndViterbi(hmm_rd, cmdline.bin, cmdline.coverage);
+		CallHmm::HmmAndViterbi(cnvs, ref_name, hmm_rd, cmdline.bin, cmdline.coverage);
 		
 	}
 	std::cout.rdbuf(coutbuf); //reset to standard output again

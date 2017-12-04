@@ -1,10 +1,12 @@
 #include <iostream>
 #include <cstring>
 #include <list>
+#include <string>
 
 #include "umdhmm-v1.02/nrutil.h"
 #include "umdhmm-v1.02/hmm.h"
 
+#include "hmm_stats.h"
 #include "CallHmm.h"
 
 namespace {
@@ -43,14 +45,8 @@ void PrintHmm (const HMM& hmm, const int& T, const int* O) {
 	std::cerr << "=====End HMM table printing=====" << std::endl;
 }
 
-void SmoothStats(const std::list <SReadDepth>& read_depth, const int bin_size, const int* q, const int T) {
-	struct hmm_stats {
-		hmm_stats(const unsigned int a, const unsigned int b, const unsigned int c): pos(a), stats(b), length(c){};
-		unsigned int pos;
-		unsigned int stats;
-		unsigned int length;
-	};
-
+void SmoothStats(std::list<hmm_stats> & cnvs, const std::string & ref_name, 
+			const std::list <SReadDepth>& read_depth, const int bin_size, const int* q, const int T) {
 	if (read_depth.size() != T) {
 		std::cerr << "ERROR: HMM read_depth's size does not match with the number of stats." << std::endl;
 		return;
@@ -100,14 +96,16 @@ void SmoothStats(const std::list <SReadDepth>& read_depth, const int bin_size, c
 #endif
 
 	for (std::list <hmm_stats>::const_iterator ite = smooth_result.begin(); ite != smooth_result.end(); ++ite) {
-		if (ite->stats != 3 && ite->length * bin_size > 250000)
-			std::cerr << ite->pos << "\t" << ite->stats << "\t" << ite->length*bin_size+ite->pos-1 << "\t" << ite->length*bin_size << std::endl;
+		if (ite->stats != 3 && ite->length * bin_size > 250000) {
+			cnvs.push_back(*ite);
+			cnvs.back().chr = ref_name;
+		}
 	}
 }
 } // namespace
 
 namespace CallHmm { 
-bool HmmAndViterbi (const std::list <SReadDepth>& read_depth, const int & bin_size, const double & coverage) {
+bool HmmAndViterbi (std::list<hmm_stats> & cnvs, const std::string & ref_name, const std::list <SReadDepth>& read_depth, const int & bin_size, const double & coverage) {
 	if (read_depth.empty()) return false;
 
 	// Init HMM
@@ -148,7 +146,7 @@ PrintHmm(hmm, T, O);
 #endif
 	
 	ViterbiLog(&hmm, T, O, delta, psi, q, &logproba);
-	SmoothStats(read_depth, bin_size, q, T);
+	SmoothStats(cnvs, ref_name, read_depth, bin_size, q, T);
 
 	// Clean up
 	for (int i = 1; i <= hmm.N; ++i) {
