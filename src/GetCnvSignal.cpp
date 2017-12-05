@@ -259,6 +259,24 @@ void PrintResults(std::ofstream & log, std::stringstream & bam_signal_out, std::
 		log << std::endl;
 	}
 }
+
+void FilterCnv(std::list<hmm_stats> & cnvs, SGrabJellyfishKmerCml & jf_cml) {
+	GrabJellyfishKmer count_kmer;
+
+	std::streambuf * coutbuf = std::cout.rdbuf();
+	std::stringstream count_kmer_out;
+
+	for (std::list<hmm_stats>::const_iterator ite = cnvs.begin(); ite != cnvs.end(); ++ite) {
+		jf_cml.region = ite->chr + ":" + std::to_string(ite->pos) + "-" + std::to_string(ite->pos + ite->length * jf_cml.bin - 1);
+		std::cerr << "CNV region: " << jf_cml.region << std::endl;
+		count_kmer.SetParameters(jf_cml);
+		count_kmer.Run();
+		std::cerr << count_kmer_out << std::endl;
+	}
+
+	std::cout.rdbuf(coutbuf); //reset to standard output again
+
+}
 } // namespace
 
 GetCnvSignal::GetCnvSignal(int argc, char** argv)
@@ -276,6 +294,7 @@ int GetCnvSignal::Run () const {
 	// Since count_kmer prints out result on std::cout, we need to redirect std::cout buffer.
 	std::streambuf * coutbuf = std::cout.rdbuf(); //save old buf
 	std::stringstream count_kmer_out;
+	/*
 	// Perform GrabJellyfishKmer
 	if (!cmdline.input_jfdb.empty() && !cmdline.fasta.empty()) {
 		std::cout.rdbuf(count_kmer_out.rdbuf()); //redirect std::cout to count_kmer_out
@@ -286,6 +305,7 @@ int GetCnvSignal::Run () const {
 		count_kmer.Run();
 		std::cout.rdbuf(coutbuf); //reset to standard output again
 	}
+	*/
 
 	// Parse region.
 	// Parse region from the command line or parse regions from the bam header.
@@ -326,6 +346,7 @@ int GetCnvSignal::Run () const {
 		bam_hdr_destroy(header);
 		sam_close(bam_reader);
 	}
+
 	// Divide regions into 5M block if it is larger than 5M.
 	// HMM seems to get much faster performance for smaller regions.
 	for (std::list<Fastaq::SRegion>::iterator ite = regions.begin(); ite != regions.end(); ++ite) {
@@ -372,9 +393,15 @@ int GetCnvSignal::Run () const {
 		ProcessBam(hmm_rd,cmdline.bam.c_str(), *ite, cmdline.bin, ref_seq);
 		// Perform HMM	
 		CallHmm::HmmAndViterbi(cnvs, ref_name, hmm_rd, cmdline.bin, cmdline.coverage);
-		
 	}
 	std::cout.rdbuf(coutbuf); //reset to standard output again
+	std::cerr << "Message: HMM completes." << std::endl;
+
+	SGrabJellyfishKmerCml jf_cml;
+	jf_cml.input_jfdb = cmdline.input_jfdb;
+	jf_cml.fasta = cmdline.fasta;
+	jf_cml.bin = cmdline.bin;
+	FilterCnv(cnvs, jf_cml);
 
 	// Open a file for outputing log
 	if (!cmdline.log.empty()) {

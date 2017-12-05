@@ -200,6 +200,10 @@ int GrabJellyfishKmer::Run () const {
 
 }
 
+GrabJellyfishKmer::GrabJellyfishKmer()
+{
+}
+
 GrabJellyfishKmer::GrabJellyfishKmer(int argc, char** argv)
 	: cmdline(argc, argv)
 {
