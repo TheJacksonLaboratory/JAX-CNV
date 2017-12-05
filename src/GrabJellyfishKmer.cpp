@@ -69,8 +69,10 @@ void GetKmerCount (const Fastaq::CReference & ref, const Fastaq::SRegion & regio
 		unsigned int score_count = 0;
 		unsigned int score_sum = 0;
 		char score = '\0';
+		std::cout << ">" << ref_names[i] << std::endl;
 		for (unsigned int j = target_begin; j < target_end - kmer_size; ++j) {
 			jellyfish::mer_dna m;
+			// TODO: GetSubString is slow.
 			m = ref.GetSubString(ref_names[i], j, kmer_size).c_str();
 			if (header.canonical()) m.canonicalize();
 			if (contig) { // Report an average count for each contig

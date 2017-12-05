@@ -10,7 +10,7 @@
 
 struct SubCommand {
 	const unsigned int no_sub_commands = 3;
-	const std::string sub_commands[3] = {"CountKmer", "GetCnvSignal", "GenerateKmer"};
+	const std::string sub_commands[3] = {"GrabJellyfishKmer", "GetCnvSignal", "GenerateKmer"};
 
 	const std::string Help (const char* program) const { return
 		std::string("\n") +
