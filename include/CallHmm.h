@@ -1,10 +1,10 @@
 #ifndef _CALLHMM_H_
 #define _CALLHMM_H_
 
-#include "ReadDepth.h"
+#include "DataStruct.h"
 
 namespace CallHmm {
-bool HmmAndViterbi (std::list<hmm_stats> & cnvs, const std::string & ref_name, 
+bool HmmAndViterbi (std::list<SHmmStats> & cnvs, const std::string & ref_name, 
 			const std::list <SReadDepth>& read_depth, const int & bin_size, const double & coverage);
 
 //namespace ReadDepthHmm { 

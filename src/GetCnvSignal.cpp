@@ -9,8 +9,7 @@
 // Self include
 #include "GrabJellyfishKmer.h"
 #include "GetCnvSignal.h"
-#include "ReadDepth.h"
-#include "hmm_stats.h"
+#include "DataStruct.h"
 #include "CallHmm.h"
 
 
@@ -195,7 +194,8 @@ void ProcessAlignment (SBamData & bam_data, const bam1_t * aln) {
 //       For each alignment, Function ProcessAlignment will extract info the alignment.
 //       HMM using read depths is also embedded.
 // @ref: We can access bases of the entire chromosome from ref.
-void ProcessBam (std::list <SReadDepth> & hmm_rd, const char * bam_filename, const Fastaq::SRegion & region, const int & bin, const std::string & ref) {
+void ProcessBam (std::list <SReadDepth> & hmm_rd, const char * bam_filename, const Fastaq::SRegion & region,
+			const int & bin, const std::string & ref) {
 	samFile * bam_reader = sam_open(bam_filename, "r");
 
 	bam_hdr_t *header;
@@ -260,23 +260,52 @@ void PrintResults(std::ofstream & log, std::stringstream & bam_signal_out, std::
 	}
 }
 
-void FilterCnv(std::list<hmm_stats> & cnvs, SGrabJellyfishKmerCml & jf_cml) {
-	GrabJellyfishKmer count_kmer;
-
-	std::streambuf * coutbuf = std::cout.rdbuf();
-	std::stringstream count_kmer_out;
-
-	for (std::list<hmm_stats>::const_iterator ite = cnvs.begin(); ite != cnvs.end(); ++ite) {
-		jf_cml.region = ite->chr + ":" + std::to_string(ite->pos) + "-" + std::to_string(ite->pos + ite->length * jf_cml.bin - 1);
-		std::cerr << "CNV region: " << jf_cml.region << std::endl;
-		count_kmer.SetParameters(jf_cml);
-		count_kmer.Run();
-		std::cerr << count_kmer_out << std::endl;
+void FilterCnvs(std::list<SHmmStats> & cnvs, const std::string kmer_table, const int bin_size) {
+	std::string chr_name, kmer_seq;
+	bool load_kmer = false;
+	for (std::list<SHmmStats>::const_iterator ite = cnvs.begin(); ite != cnvs.end(); ++ite) {
+		if (chr_name != ite->chr) {
+			load_kmer = Fastaq::FastaLoad(kmer_seq, kmer_table.c_str(), false, ite->chr.c_str());
+			if (!load_kmer)
+				std::cerr << "WARNING: Cannot load kmer seqeunces " << ite->chr << " from " << kmer_table << std::endl;
+			else
+				std::cerr << "Message: Loading kmer of chromosome " << ite->chr << " is done." << std::endl;
+		}
+		if (load_kmer) {
+			std::list<SHmmStats> kmer_list;
+			for (unsigned int i = ite->pos; i < ite->pos + ite->length * bin_size && i < kmer_seq.size() - 1; ++i) {
+				const unsigned int kmer_score = static_cast<unsigned int>(kmer_seq[i]) - 33;
+				unsigned int kmer_level = 0;
+				switch (kmer_score) {
+					case 0:
+					case 1: kmer_level = 1; break;
+					case 2: kmer_level = 2; break;
+					case 3:
+					case 4:
+					case 5: kmer_level = 3; break;
+					default: kmer_level = 4; break;
+				}
+				if (kmer_list.empty() || kmer_level != kmer_list.back().kmer_score) {
+					SHmmStats tmp(ite->chr, i, 0, 0, kmer_level);
+					kmer_list.push_back(tmp);
+				}
+				++kmer_list.back().length;
+			}
+			
+			std::list<SHmmStats> smooth_kmer_list;
+			for (std::list<SHmmStats>::iterator kmer_ite = kmer_list.begin(); kmer_ite != kmer_list.end(); ++kmer_ite) {
+				if (smooth_kmer_list.empty() || smooth_kmer_list.back().kmer_score != kmer_ite->kmer_score || kmer_ite->length > 5000)
+					smooth_kmer_list.push_back(*kmer_ite);
+				else
+					smooth_kmer_list.back().length += kmer_ite->length;
+			}
+			for (std::list<SHmmStats>::iterator kmer_ite = smooth_kmer_list.begin(); kmer_ite != smooth_kmer_list.end(); ++kmer_ite) {
+				std::cerr << kmer_ite->chr << "\t" << kmer_ite->pos << "\t" << kmer_ite->length << "\t" << kmer_ite->kmer_score << std::endl;
+			}
+		}
 	}
-
-	std::cout.rdbuf(coutbuf); //reset to standard output again
-
 }
+
 } // namespace
 
 GetCnvSignal::GetCnvSignal(int argc, char** argv)
@@ -376,38 +405,45 @@ int GetCnvSignal::Run () const {
 
 	// Process BAM by regions
 	std::string ref_seq;
+	//std::string kmer_seq;
 	std::string ref_name;
-	std::list<hmm_stats> cnvs;
+	std::list<SHmmStats> cnvs;
 	for (std::list<Fastaq::SRegion>::const_iterator ite = regions.begin(); ite != regions.end(); ++ite) {
+		std::cerr << "Message: Processing " << ite->chr << ":" << ite->begin << "-" << ite->end << std::endl;
 		// The chromosome is not in ref. Load it from fasta.
 		if (ref_name != ite->chr) {
-			std::cerr << "chr: " << ite->chr << std::endl;
 			ref_name = ite->chr; // Keep the new chr name.
 			// Load a complete seq of the chromosome.
 			if (!Fastaq::FastaLoad(ref_seq, cmdline.fasta.c_str(), true, ite->chr.c_str())) {
 				std::cerr << "ERROR: Cannot load chromosome " << ite->chr << " from " << cmdline.fasta << std::endl;
 				return 1;
 			}
+			std::cerr << "Message: Loading chromosome " << ite->chr << " is done." << std::endl;
+			//if (!Fastaq::FastaLoad(kmer_seq, cmdline.kmer_table.c_str(), true, ite->chr.c_str())) {
+			//	std::cerr << "ERROR: Cannot load kmer seqeunces " << ite->chr << " from " << cmdline.kmer_table << std::endl;
+			//	return 1;
+			//}
+			//std::cerr << "Message: Loading kmer of chromosome " << ite->chr << " is done." << std::endl;
 		}
+		
 		std::list <SReadDepth> hmm_rd; // The list to collect read depth info for HMM.
-		ProcessBam(hmm_rd,cmdline.bam.c_str(), *ite, cmdline.bin, ref_seq);
+		ProcessBam(hmm_rd, cmdline.bam.c_str(), *ite, cmdline.bin, ref_seq);
 		// Perform HMM	
 		CallHmm::HmmAndViterbi(cnvs, ref_name, hmm_rd, cmdline.bin, cmdline.coverage);
 	}
 	std::cout.rdbuf(coutbuf); //reset to standard output again
 	std::cerr << "Message: HMM completes." << std::endl;
+	for (std::list<SHmmStats>::const_iterator ite = cnvs.begin(); ite != cnvs.end(); ++ite) {
+		std::cout << ite->stats << "\t" << ite->chr << "\t" << ite->pos << "\t" << ite->pos + ite->length * cmdline.bin - 1 << std::endl;
+	}
 
-	SGrabJellyfishKmerCml jf_cml;
-	jf_cml.input_jfdb = cmdline.input_jfdb;
-	jf_cml.fasta = cmdline.fasta;
-	jf_cml.bin = cmdline.bin;
-	FilterCnv(cnvs, jf_cml);
+	FilterCnvs(cnvs, cmdline.kmer_table, cmdline.bin);
 
 	// Open a file for outputing log
 	if (!cmdline.log.empty()) {
 		std::ofstream log;
 		log.open(cmdline.log, std::ofstream::out);
-		PrintResults(log, bam_signal_out, count_kmer_out, (!cmdline.input_jfdb.empty() && !cmdline.fasta.empty()));
+		//PrintResults(log, bam_signal_out, count_kmer_out, (!cmdline.input_jfdb.empty() && !cmdline.fasta.empty()));
 		log.close();
 	}
 

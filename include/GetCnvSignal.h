@@ -11,7 +11,7 @@ struct SGetCnvSignalCml {
 	bool help = false;
 
 	// i/o
-	std::string input_jfdb; // -i --input
+	std::string kmer_table; // -k --kmer
 	std::string fasta;      // -f --fasta
 	std::string bam;	// -b --bam
 	std::string output;     // -o --output
@@ -26,7 +26,7 @@ struct SGetCnvSignalCml {
 	// command line
 	std::string cmd;
 
-	const char* short_option = "hb:i:f:o:c:r:";
+	const char* short_option = "hb:k:f:o:c:r:";
 
 	// Help list
 	const std::string Help (const char* program) const { return
@@ -35,16 +35,16 @@ struct SGetCnvSignalCml {
 		std::string("\n") +
 		std::string("Input & Output:\n") +
 		std::string("	-b --bam <BAM>			Input BAM; required.\n") +
-		std::string("	-i --input <jellyfish_db>	Jellyfish created count database.\n") +
+		std::string("	-k --kmer <kmer_table>		Kmer table.\n") +
 		std::string("	-f --fasta <FASTA>		FASTA for kmer lookup.\n") +
 		std::string("	-o --output <FILE>		Output file.\n") +
 		std::string("\n") +
 		std::string("Operations:\n") +
-		std::string("   -c --coverage <FLOAT>		Specify the coverage.\n") +
+		std::string("	-c --coverage <FLOAT>		Specify the coverage.\n") +
 		std::string("	-r --region chr:begin-end	Specify a target region.\n") +
-		std::string("   --ascii				Report kmer count in ASCII: (log2(#) + 1) + 33.\n") +
+		std::string("	--ascii				Report kmer count in ASCII: (log2(#) + 1) + 33.\n") +
 		std::string("	--bin <INT>			Report a result for each # bp. [1]\n") +
-		std::string("   --log <FILE>			Log output.\n");
+		std::string("	--log <FILE>			Log output.\n");
 	}
 
 	// Check the required arguments.
@@ -56,6 +56,10 @@ struct SGetCnvSignalCml {
 		}
 		if (bam.empty()) {
 			std::cerr << "ERROR: -b <BAM> is required." << std::endl;
+			ok = false;
+		}
+		if (kmer_table.empty()) {
+			std::cerr << "ERROR: -k <kmer_table> is required." << std::endl;
 			ok = false;
 		}
 		if (fasta.empty()) {
@@ -77,7 +81,7 @@ struct SGetCnvSignalCml {
 			{"help", required_argument, NULL, 'h'},
 			// i/o
 			{"bam", required_argument, NULL, 'b'},
-			{"input", required_argument, NULL, 'i'},
+			{"kmer", required_argument, NULL, 'k'},
 			{"fasta", required_argument, NULL, 'f'},
 			{"output", required_argument, NULL, 'o'},
 
@@ -94,7 +98,7 @@ struct SGetCnvSignalCml {
 		while ((c = getopt_long(argc, argv, short_option, long_option, &option_index)) != -1) {
 			switch (c) {
 				case 'h': help = true; break;
-				case 'i': input_jfdb = optarg; break;
+				case 'k': kmer_table = optarg; break;
 				case 'f': fasta = optarg; break;
 				case 'b': bam = optarg; break;
 				case 'o': output = optarg; break;
