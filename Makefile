@@ -82,5 +82,3 @@ $(HTS_LIB):
 	@rm -rf $(LIB)/htslib/autom4te.cache
 	@cd $(LIB)/htslib && $(AUTOHEADER) && $(AUTOCONF) && ./configure --disable-lzma --disable-lcurl
 	$(MAKE) --no-print-directory -C $(LIB)/htslib
-	@test -f $(LIB)/htslib/configure.ac~ && mv $(LIB)/htslib/configure.ac~ $(LIB)/htslib/configure.ac
-
