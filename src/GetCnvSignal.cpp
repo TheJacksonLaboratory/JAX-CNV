@@ -11,7 +11,7 @@
 #include "GetCnvSignal.h"
 #include "DataStruct.h"
 #include "CallHmm.h"
-
+#include "EstimateCoverage.h"
 
 // FASTAQ include
 #include "fastaq/fasta.h"
@@ -406,6 +406,14 @@ int GetCnvSignal::Run () const {
 	}
 	sam_close(bam_reader);
 
+	// Estimate Coverage
+	int coverage = cmdline.coverage;
+	if (coverage == 0) {
+		std::vector<float> coverages;
+		coverage = EstimateCoverage::EstimateCoverage(coverages, cmdline.bam.c_str(), cmdline.kmer_table.c_str());
+		std::cerr << "Message: The estimated coverage is " << coverage << std::endl;
+	}
+
 	// Re-direct cout
 	coutbuf = std::cout.rdbuf(); //save old buf
 	std::stringstream bam_signal_out;
@@ -437,7 +445,7 @@ int GetCnvSignal::Run () const {
 		std::list <SReadDepth> hmm_rd; // The list to collect read depth info for HMM.
 		ProcessBam(hmm_rd, cmdline.bam.c_str(), *ite, cmdline.bin, ref_seq);
 		// Perform HMM	
-		CallHmm::HmmAndViterbi(cnvs, ref_name, hmm_rd, cmdline.bin, cmdline.coverage);
+		CallHmm::HmmAndViterbi(cnvs, ref_name, hmm_rd, cmdline.bin, coverage);
 	}
 	std::cout.rdbuf(coutbuf); //reset to standard output again
 

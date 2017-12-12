@@ -5,7 +5,7 @@
 
 namespace CallHmm {
 bool HmmAndViterbi (std::list<SHmmStats> & cnvs, const std::string & ref_name, 
-			const std::list <SReadDepth>& read_depth, const int & bin_size, const double & coverage);
+			const std::list <SReadDepth>& read_depth, const int & bin_size, const int & coverage);
 
 //namespace ReadDepthHmm { 
 const int hmm_N = 5;

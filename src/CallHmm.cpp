@@ -129,7 +129,7 @@ void SmoothStats(std::list<SHmmStats> & cnvs, const std::string & ref_name,
 } // namespace
 
 namespace CallHmm { 
-bool HmmAndViterbi (std::list<SHmmStats> & cnvs, const std::string & ref_name, const std::list <SReadDepth>& read_depth, const int & bin_size, const double & coverage) {
+bool HmmAndViterbi (std::list<SHmmStats> & cnvs, const std::string & ref_name, const std::list <SReadDepth>& read_depth, const int & bin_size, const int & coverage) {
 	if (read_depth.empty()) return false;
 
 	// Init HMM
@@ -139,7 +139,7 @@ bool HmmAndViterbi (std::list<SHmmStats> & cnvs, const std::string & ref_name, c
 		//const int rd_diff = (ite->count - coverage) / static_cast<double>(ite->kmer_score);
 		//int tmp_o = round((coverage + rd_diff) / coverage * 50);
 		//if (tmp_o < 0) tmp_o = 0;
-		const int tmp_o = round(ite->count / coverage * 50);
+		const int tmp_o = round(ite->count / static_cast<float>(coverage) * 50);
 		O[std::distance(read_depth.begin(), ite) + 1] = std::min(tmp_o, 180);
 	}
 

@@ -17,7 +17,7 @@ struct SGetCnvSignalCml {
 	std::string output;     // -o --output
 
 	// operation parameters
-	double coverage = 0.0;	// -c --coverage
+	int coverage = 0;	// -c --coverage
 	std::string region;     // -r --region
 	bool ascii = false;	// --ascii
 	int bin = 1;		// --bin
@@ -40,7 +40,7 @@ struct SGetCnvSignalCml {
 		std::string("	-o --output <FILE>		Output file.\n") +
 		std::string("\n") +
 		std::string("Operations:\n") +
-		std::string("	-c --coverage <FLOAT>		Specify the coverage.\n") +
+		std::string("	-c --coverage <INT>		Specify the coverage.\n") +
 		std::string("	-r --region chr:begin-end	Specify a target region.\n") +
 		std::string("	--ascii				Report kmer count in ASCII: (log2(#) + 1) + 33.\n") +
 		std::string("	--bin <INT>			Report a result for each # bp. [1]\n") +
@@ -64,10 +64,6 @@ struct SGetCnvSignalCml {
 		}
 		if (fasta.empty()) {
 			std::cerr << "ERROR: -f <FASTA> is required." << std::endl;
-			ok = false;
-		}
-		if (coverage == 0.0) {
-			std::cerr << "ERROR: -c <FLOAT> is required. Please specify the coverage." << std::endl;
 			ok = false;
 		}
 
@@ -102,7 +98,7 @@ struct SGetCnvSignalCml {
 				case 'f': fasta = optarg; break;
 				case 'b': bam = optarg; break;
 				case 'o': output = optarg; break;
-				case 'c': coverage = atof(optarg); break;
+				case 'c': coverage = atoi(optarg); break;
 				case 'r': region = optarg; break;
 				case 1: ascii = true; break;
 				case 2: bin = atoi(optarg); break;

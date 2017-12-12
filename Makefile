@@ -18,7 +18,7 @@ CXXFLAGS:=-std=c++11 $(CFLAGS)
 export $(CFLAGS)
 export $(CXXFLAGS)
 
-SOURCES = main.cpp src/GrabJellyfishKmer.cpp src/GetCnvSignal.cpp src/GenerateKmer.cpp src/CallHmm.cpp
+SOURCES = main.cpp src/GrabJellyfishKmer.cpp src/GetCnvSignal.cpp src/GenerateKmer.cpp src/CallHmm.cpp src/EstimateCoverage.cpp
 
 PROGRAM=$(BIN_DIR)/GetKmerCount
 
