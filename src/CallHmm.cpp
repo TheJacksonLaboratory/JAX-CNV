@@ -1,6 +1,6 @@
 #include <iostream>
 #include <cstring>
-#include <list>
+#include <vector>
 #include <string>
 
 #include "umdhmm-v1.02/nrutil.h"
@@ -45,15 +45,15 @@ void PrintHmm (const HMM& hmm, const int& T, const int* O) {
 	std::cerr << "=====End HMM table printing=====" << std::endl;
 }
 
-void SmoothStats(std::list<SHmmStats> & cnvs, const std::string & ref_name, 
-			const std::list <SReadDepth>& read_depth, const int bin_size, const int* q, const int T) {
+void SmoothStats(std::vector<SHmmStats> & cnvs, const std::string & ref_name, 
+			const std::vector <SReadDepth>& read_depth, const int bin_size, const int* q, const int T) {
 	if (read_depth.size() != T) {
 		std::cerr << "ERROR: HMM read_depth's size does not match with the number of stats." << std::endl;
 		return;
 	}
 
-	std::list <SHmmStats> result;
-	std::list <SReadDepth>::const_iterator rd_ite = read_depth.begin();
+	std::vector <SHmmStats> result;
+	std::vector <SReadDepth>::const_iterator rd_ite = read_depth.begin();
 	// Ccollapse stats.
 	for (int i = 1; i <= T; ++i, ++rd_ite) {
 		// If there are >50% N's in the region, the region won't be taken in account so we set the stats to NORMAL.
@@ -72,40 +72,14 @@ void SmoothStats(std::list<SHmmStats> & cnvs, const std::string & ref_name,
 
 #ifdef DEBUG
 	std::cerr << "HMM before smoothing" << std::endl;
-	for (std::list <SHmmStats>::const_iterator ite = result.begin(); ite != result.end(); ++ite) {
+	for (std::vector <SHmmStats>::const_iterator ite = result.begin(); ite != result.end(); ++ite) {
 		std::cerr << ite->pos << "\t" << ite->stats << "\t" << ite->length << std::endl;
 	}
 #endif
 
-	std::list <SHmmStats> smooth_result;
+	std::vector <SHmmStats> smooth_result;
 	smooth_result.push_back(result.front());
-	for (std::list <SHmmStats>::const_iterator ite = std::next(result.begin()); ite != result.end(); ++ite) {
-		/*
-		const float kmer_score = ite->kmer_score / static_cast<float>(ite->length);
-		if (kmer_score > 2.0) { // high kmer regions
-			if (smooth_result.back().stats != 3) {
-				std::list <SHmmStats>::const_iterator next_ite = std::next(ite);
-				unsigned int length = smooth_result.back().length;
-				if (next_ite != result.end() && next_ite->stats == smooth_result.back().stats)
-					length += next_ite->length;
-
-				if (ite->length / length < 0.2)
-					smooth_result.back().length += ite->length;
-				else
-					smooth_result.push_back(*ite);
-			} else {
-				if (ite->length * bin_size < 5000 || ite->stats == smooth_result.back().stats) // TODO: The minimum detectable CNV is 5000bp.
-					smooth_result.back().length += ite->length;
-				else
-					smooth_result.push_back(*ite);
-			}
-		} else { // low kmer regions
-			if (ite->length * bin_size < 5000 || ite->stats == smooth_result.back().stats)
-				smooth_result.back().length += ite->length;
-			else
-				smooth_result.push_back(*ite);
-		}
-		*/
+	for (std::vector <SHmmStats>::const_iterator ite = std::next(result.begin()); ite != result.end(); ++ite) {
 		if (ite->length < 5000 || ite->stats == smooth_result.back().stats)
 			smooth_result.back().length += ite->length;
 		else
@@ -114,12 +88,12 @@ void SmoothStats(std::list<SHmmStats> & cnvs, const std::string & ref_name,
 
 #ifdef DEBUG
 	std::cerr << "HMM after smoothing" << std::endl;
-	for (std::list <SHmmStats>::const_iterator ite = smooth_result.begin(); ite != smooth_result.end(); ++ite) {
+	for (std::vector <SHmmStats>::const_iterator ite = smooth_result.begin(); ite != smooth_result.end(); ++ite) {
 		std::cerr << ite->pos << "\t" << ite->stats << "\t" << ite->length << std::endl;
 	}
 #endif
 
-	for (std::list <SHmmStats>::const_iterator ite = smooth_result.begin(); ite != smooth_result.end(); ++ite) {
+	for (std::vector <SHmmStats>::const_iterator ite = smooth_result.begin(); ite != smooth_result.end(); ++ite) {
 		if (ite->stats != 3 && ite->length > 250000) {
 			cnvs.push_back(*ite);
 			cnvs.back().chr = ref_name;
@@ -129,13 +103,13 @@ void SmoothStats(std::list<SHmmStats> & cnvs, const std::string & ref_name,
 } // namespace
 
 namespace CallHmm { 
-bool HmmAndViterbi (std::list<SHmmStats> & cnvs, const std::string & ref_name, const std::list <SReadDepth>& read_depth, const int & bin_size, const int & coverage) {
+bool HmmAndViterbi (std::vector<SHmmStats> & cnvs, const std::string & ref_name, const std::vector <SReadDepth>& read_depth, const int & bin_size, const int & coverage) {
 	if (read_depth.empty()) return false;
 
 	// Init HMM
 	int T = read_depth.size();
 	int* O = new int [T + 1]; // observation sequence O[1..T]
-	for (std::list <SReadDepth>::const_iterator ite = read_depth.begin(); ite != read_depth.end(); ++ite) {
+	for (std::vector <SReadDepth>::const_iterator ite = read_depth.begin(); ite != read_depth.end(); ++ite) {
 		//const int rd_diff = (ite->count - coverage) / static_cast<double>(ite->kmer_score);
 		//int tmp_o = round((coverage + rd_diff) / coverage * 50);
 		//if (tmp_o < 0) tmp_o = 0;
