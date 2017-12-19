@@ -2,6 +2,7 @@
 #include <cstring>
 #include <vector>
 #include <string>
+#include <algorithm>
 
 #include "umdhmm-v1.02/nrutil.h"
 #include "umdhmm-v1.02/hmm.h"
@@ -45,6 +46,79 @@ void PrintHmm (const HMM& hmm, const int& T, const int* O) {
 	std::cerr << "=====End HMM table printing=====" << std::endl;
 }
 
+inline bool SortByCoordinate(const SHmmStats & a, const SHmmStats & b) {
+	return a.pos < b.pos;
+}
+
+inline bool SortByLength(const SHmmStatsHeap & a, const SHmmStatsHeap & b) {
+	return a.hmm_stats.length < b.hmm_stats.length;
+}
+
+inline bool CheckMerge(SHmmStats & pilot, const SHmmStats & target) {
+	bool merged = false;
+	// There should not any overlap between two.
+	if ((pilot.pos + pilot.length <= target.pos) || (target.pos + target.length <= pilot.pos)) {
+		const bool pilot_is_left_hand = (pilot.pos + pilot.length < target.pos);
+		const unsigned int gap = pilot_is_left_hand ? target.pos - pilot.pos - pilot.length
+						: pilot.pos - target.pos - target.length;
+		// Merge
+		if ((gap / static_cast<float>(pilot.length)) < 0.1) {
+			merged = true;
+			if (pilot_is_left_hand) {
+				const unsigned int end_pos = target.pos + target.length - 1;
+				pilot.length = end_pos - pilot.pos + 1;
+			} else {
+				pilot.length = pilot.pos + pilot.length - 1 - target.pos + 1;
+				pilot.pos = target.pos;
+			}
+		}
+	}
+
+	return merged;
+}
+
+void ConsolidateStats(std::vector <SHmmStatsHeap> & smooth_result, std::vector <SHmmStatsHeap> & heap) {
+	std::sort(heap.begin(), heap.end(), SortByLength);
+	for (std::vector <SHmmStatsHeap>::reverse_iterator ite = heap.rbegin(); ite != heap.rend(); ++ite) {
+		if (!ite->merged && ite->hmm_stats.stats != 3) {
+			// Forward merging
+			for (unsigned int i = ite->id + 1; i < smooth_result.size(); ++i) {
+				if (smooth_result[i].merged) break;
+				if (smooth_result[i].hmm_stats.stats == 3) continue;
+				const bool consistant_type = ((ite->hmm_stats.stats == 1 || ite->hmm_stats.stats == 2) 
+									&& smooth_result[i].hmm_stats.stats == 1 || smooth_result[i].hmm_stats.stats == 2)
+								|| ((ite->hmm_stats.stats == 4 || ite->hmm_stats.stats == 5)
+									&& smooth_result[i].hmm_stats.stats == 4 || smooth_result[i].hmm_stats.stats == 5);
+				if (!consistant_type) { // Different stats
+					break;
+				} else {
+					if (CheckMerge(ite->hmm_stats, smooth_result[i].hmm_stats))
+						smooth_result[i].merged = true;
+					else 
+						break;
+				}
+			}
+			// Backward merging
+			for (unsigned int i = ite->id; i > 0; --i) {
+				if (smooth_result[i - 1].merged) break;
+				if (smooth_result[i - 1].hmm_stats.stats == 3) continue;
+				const bool consistant_type = ((ite->hmm_stats.stats == 1 || ite->hmm_stats.stats == 2) 
+									&& smooth_result[i - 1].hmm_stats.stats == 1 || smooth_result[i - 1].hmm_stats.stats == 2)
+								|| ((ite->hmm_stats.stats == 4 || ite->hmm_stats.stats == 5)
+									&& smooth_result[i - 1].hmm_stats.stats == 4 || smooth_result[i - 1].hmm_stats.stats == 5);
+				if (!consistant_type) { // Different stats
+					break;
+				} else {
+					if (CheckMerge(ite->hmm_stats, smooth_result[i - 1].hmm_stats))
+						smooth_result[i - 1].merged = true;
+					else 
+						break;
+				}
+			}
+		}
+	}
+}
+
 void SmoothStats(std::vector<SHmmStats> & cnvs, const std::string & ref_name, 
 			const std::vector <SReadDepth>& read_depth, const int bin_size, const int* q, const int T) {
 	if (read_depth.size() != T) {
@@ -53,6 +127,7 @@ void SmoothStats(std::vector<SHmmStats> & cnvs, const std::string & ref_name,
 	}
 
 	std::vector <SHmmStats> result;
+	result.reserve(T);
 	std::vector <SReadDepth>::const_iterator rd_ite = read_depth.begin();
 	// Ccollapse stats.
 	for (int i = 1; i <= T; ++i, ++rd_ite) {
@@ -62,7 +137,6 @@ void SmoothStats(std::vector<SHmmStats> & cnvs, const std::string & ref_name,
 #endif
 		const int cur_stat = (rd_ite->n_count * 2) > bin_size ? 3 : q[i];
 		
-		//std::cerr << rd_ite->pos << "\t" << rd_ite->n_count << "\t" << cur_stat << "\t" << q[i] << std::endl;
 		if (result.empty() || cur_stat != result.back().stats) { // Create the init hmm_stats.
 			SHmmStats tmp(rd_ite->pos, cur_stat, 0);
 			result.push_back(tmp);
@@ -77,28 +151,41 @@ void SmoothStats(std::vector<SHmmStats> & cnvs, const std::string & ref_name,
 	}
 #endif
 
-	std::vector <SHmmStats> smooth_result;
-	smooth_result.push_back(result.front());
+	std::vector <SHmmStatsHeap> smooth_result;
+	unsigned int vector_id = 0;
+	SHmmStatsHeap tmp_heap(result.front(), vector_id);
+	smooth_result.push_back(tmp_heap);
 	for (std::vector <SHmmStats>::const_iterator ite = std::next(result.begin()); ite != result.end(); ++ite) {
-		if (ite->length < 5000 || ite->stats == smooth_result.back().stats)
-			smooth_result.back().length += ite->length;
-		else
-			smooth_result.push_back(*ite);
+		if (ite->length < 5000 || ite->stats == smooth_result.back().hmm_stats.stats) {
+			smooth_result.back().hmm_stats.length += ite->length;
+		} else {
+			tmp_heap.hmm_stats = *ite;
+			tmp_heap.id = ++vector_id;
+			smooth_result.push_back(tmp_heap);
+		}
 	}
+
 
 #ifdef DEBUG
 	std::cerr << "HMM after smoothing" << std::endl;
-	for (std::vector <SHmmStats>::const_iterator ite = smooth_result.begin(); ite != smooth_result.end(); ++ite) {
-		std::cerr << ite->pos << "\t" << ite->stats << "\t" << ite->length << std::endl;
+	for (std::vector <SHmmStatsHeap>::const_iterator ite = smooth_result.begin(); ite != smooth_result.end(); ++ite) {
+		std::cerr << ite->hmm_stats.pos << "\t" << ite->hmm_stats.stats << "\t" << ite->hmm_stats.length << std::endl;
 	}
 #endif
 
-	for (std::vector <SHmmStats>::const_iterator ite = smooth_result.begin(); ite != smooth_result.end(); ++ite) {
-		if (ite->stats != 3 && ite->length > 250000) {
-			cnvs.push_back(*ite);
+	// Merge segments from the largest one
+	std::vector <SHmmStatsHeap> heap = smooth_result;
+	ConsolidateStats(smooth_result, heap);
+
+	// Dump the final results	
+	for (std::vector <SHmmStatsHeap>::const_iterator ite = heap.begin(); ite != heap.end(); ++ite) {
+		if (!smooth_result[ite->id].merged && ite->hmm_stats.stats != 3 && ite->hmm_stats.length > 250000) {
+			cnvs.push_back(ite->hmm_stats);
 			cnvs.back().chr = ref_name;
 		}
+		std::sort(cnvs.begin(), cnvs.end(), SortByCoordinate);
 	}
+	
 }
 } // namespace
 
