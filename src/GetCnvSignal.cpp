@@ -2,6 +2,7 @@
 #include <iostream>
 #include <fstream>
 #include <vector>
+#include <list>
 #include <limits>
 #include <cstdint>
 
@@ -356,7 +357,7 @@ int GetCnvSignal::Run () const {
 
 	// Parse region.
 	// Parse region from the command line or parse regions from the bam header.
-	std::vector<Fastaq::SRegion> regions;
+	std::list<Fastaq::SRegion> regions;
 	if (!cmdline.region.empty()) { // Parse region from the command line.
 		Fastaq::SRegion tmp_region;
 		if (!tmp_region.Parse(cmdline.region)) {
@@ -396,7 +397,7 @@ int GetCnvSignal::Run () const {
 
 	// Divide regions into 5M block if it is larger than 5M.
 	// HMM seems to get much faster performance for smaller regions.
-	for (std::vector<Fastaq::SRegion>::iterator ite = regions.begin(); ite != regions.end(); ++ite) {
+	for (std::list<Fastaq::SRegion>::iterator ite = regions.begin(); ite != regions.end(); ++ite) {
 		if (ite->end - ite->begin + 1 > 5000000) {
 			Fastaq::SRegion tmp;
 			tmp = *ite;
@@ -434,7 +435,7 @@ int GetCnvSignal::Run () const {
 	//std::string kmer_seq;
 	std::string ref_name;
 	std::vector<SHmmStats> cnvs;
-	for (std::vector<Fastaq::SRegion>::const_iterator ite = regions.begin(); ite != regions.end(); ++ite) {
+	for (std::list<Fastaq::SRegion>::const_iterator ite = regions.begin(); ite != regions.end(); ++ite) {
 		std::cerr << "Message: Processing " << ite->chr << ":" << ite->begin << "-" << ite->end << std::endl;
 		// The chromosome is not in ref. Load it from fasta.
 		if (ref_name != ite->chr) {
