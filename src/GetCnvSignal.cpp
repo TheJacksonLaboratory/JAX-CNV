@@ -49,6 +49,12 @@ struct SBamData {
 		mismatches.clear();
 		read_depth.clear();
 	}
+	void Reserve(const unsigned int & size) {
+		isizes.reserve(size);
+		softclips.reserve(size);
+		mismatches.reserve(size);
+		read_depth.reserve(size);
+	}
 };
 
 // Func: Once alignments in a bin have been processed, then dump the info we collect for this bin.
@@ -203,6 +209,7 @@ void ProcessBam (std::vector <SReadDepth> & hmm_rd, const char * bam_filename, c
 	bam1_t * aln = bam_init1();
 
 	SBamData bam_data;
+	bam_data.Reserve(region.end - region.begin + 1);
 	// idx must be okay. We have checked in Run().
 	hts_idx_t * idx = sam_index_load(bam_reader,  bam_filename);
 	const bool load_index = idx == NULL ? false : true;
@@ -397,15 +404,17 @@ int GetCnvSignal::Run () const {
 
 	// Divide regions into 5M block if it is larger than 5M.
 	// HMM seems to get much faster performance for smaller regions.
+	/*
 	for (std::list<Fastaq::SRegion>::iterator ite = regions.begin(); ite != regions.end(); ++ite) {
-		if (ite->end - ite->begin + 1 > 5000000) {
+		if (ite->end - ite->begin + 1 > 50000000) {
 			Fastaq::SRegion tmp;
 			tmp = *ite;
-			ite->end = ite->begin + 5000000 - 1;
+			ite->end = ite->begin + 50000000 - 1;
 			tmp.begin = ite->end + 1;
 			regions.insert(std::next(ite), tmp);
 		}
 	}
+	*/
 
 	// Check BAI
 	samFile * bam_reader = sam_open(cmdline.bam.c_str(), "r");
