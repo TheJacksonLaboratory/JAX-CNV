@@ -67,7 +67,7 @@ void SmoothStats(std::list<SHmmStats> & cnvs, const std::string & ref_name,
 			SHmmStats tmp(rd_ite->pos, cur_stat, 0);
 			result.push_back(tmp);
 		}
-		++result.back().length;
+		result.back().length += bin_size;
 	}
 
 #ifdef DEBUG
@@ -106,7 +106,7 @@ void SmoothStats(std::list<SHmmStats> & cnvs, const std::string & ref_name,
 				smooth_result.push_back(*ite);
 		}
 		*/
-		if (ite->length * bin_size < 5000 || ite->stats == smooth_result.back().stats)
+		if (ite->length < 5000 || ite->stats == smooth_result.back().stats)
 			smooth_result.back().length += ite->length;
 		else
 			smooth_result.push_back(*ite);
@@ -120,7 +120,7 @@ void SmoothStats(std::list<SHmmStats> & cnvs, const std::string & ref_name,
 #endif
 
 	for (std::list <SHmmStats>::const_iterator ite = smooth_result.begin(); ite != smooth_result.end(); ++ite) {
-		if (ite->stats != 3 && ite->length * bin_size > 250000) {
+		if (ite->stats != 3 && ite->length > 250000) {
 			cnvs.push_back(*ite);
 			cnvs.back().chr = ref_name;
 		}

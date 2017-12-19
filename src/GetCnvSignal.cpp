@@ -260,10 +260,10 @@ void PrintResults(std::ofstream & log, std::stringstream & bam_signal_out, std::
 	}
 }
 
-void FilterCnvs(std::list<SHmmStats> & cnvs, const std::string kmer_table, const int bin_size) {
+void FilterCnvs(std::list<SHmmStats> & cnvs, const std::string kmer_table) {
 	std::string chr_name, kmer_seq;
 	bool load_kmer = false;
-	std::list<SHmmStats>::const_iterator ite = cnvs.begin();
+	std::list<SHmmStats>::iterator ite = cnvs.begin();
 	//for (std::list<SHmmStats>::const_iterator ite = cnvs.begin(); ite != cnvs.end(); ++ite) {
 	while (ite != cnvs.end()) {
 		if (chr_name != ite->chr) {
@@ -285,27 +285,57 @@ void FilterCnvs(std::list<SHmmStats> & cnvs, const std::string kmer_table, const
 					if (kmer_score == 2)
 						uniq_kmers[i] += 0.5;
 				}
+				uniq_kmers[i] = uniq_kmers[i] / (ite->length / static_cast<float>(kmer_bin));
+				std::cerr << i << "\t" << uniq_kmers[i] << std::endl;
 			}
+
+
+			int leading_remove = 0;
+			for (std::vector<float>::const_iterator kmer_ite = uniq_kmers.begin(); kmer_ite != uniq_kmers.end(); ++kmer_ite) {
+				if (*kmer_ite < 0.5) {
+					ite->pos += (ite->length / kmer_bin);
+					ite->length -= std::min(ite->length, (ite->length / kmer_bin));
+					++leading_remove;
+				} else {
+					break;
+				}
+			}
+
+			int tailing_remove = 0;
+			for (std::vector<float>::const_reverse_iterator kmer_ite = uniq_kmers.rbegin(); kmer_ite != uniq_kmers.rend(); ++kmer_ite) {
+				if (*kmer_ite < 0.5) {
+					ite->length -= std::min(ite->length, (ite->length / kmer_bin));
+					++tailing_remove;
+				} else {
+					break;
+				}
+			}
+
+			int uniq_kmer_count = 0;
+			for (std::vector<float>::const_iterator kmer_ite = uniq_kmers.begin(); kmer_ite != uniq_kmers.end(); ++kmer_ite)
+				if (*kmer_ite > 0.5) ++uniq_kmer_count;
+
+			/*
 			int uniq_kmer_count = 0;
 			for (unsigned int i = 0; i < kmer_bin; ++i) {
 				const float tmp_float = uniq_kmers[i] / (ite->length / static_cast<float>(kmer_bin));
 				std::cerr << i << "\t" << tmp_float << std::endl;
-				if (tmp_float > 0.85) ++uniq_kmer_count;
+				if (tmp_float > 0.7) ++uniq_kmer_count;
 				uniq_kmers[i] = tmp_float;
 			}
 			int remove_kmer_count = 0;
 			for (unsigned int i = 0; i < kmer_bin; ++i) {
-				if (uniq_kmers[i] < 0.85) ++remove_kmer_count;
+				if (uniq_kmers[i] < 0.7) ++remove_kmer_count;
 				else break;
 			}
 			for (unsigned int i = kmer_bin; i > 0; --i) {
-				if (uniq_kmers[i - 1] < 0.85) ++remove_kmer_count;
+				if (uniq_kmers[i - 1] < 0.7) ++remove_kmer_count;
 				else break;
 			}
 
-			std::cerr << uniq_kmer_count << "\t" << remove_kmer_count << std::endl;
-			
-			if (uniq_kmer_count - remove_kmer_count > 6) { // the entire region pass the filter
+			*/
+			std::cerr << uniq_kmer_count << "\t" << leading_remove << "\t" << tailing_remove << "\t" << uniq_kmer_count / static_cast<float>(kmer_bin - leading_remove - tailing_remove) << std::endl;
+			if (uniq_kmer_count / static_cast<float>(kmer_bin - leading_remove - tailing_remove) > 0.7) { // the entire region pass the filter
 				++ite; 
 			} else { // too many non uniq blocks
 				cnvs.erase(ite++);
@@ -451,14 +481,45 @@ int GetCnvSignal::Run () const {
 
 	std::cerr << "Message: HMM completes." << std::endl;
 	for (std::list<SHmmStats>::const_iterator ite = cnvs.begin(); ite != cnvs.end(); ++ite) {
-		std::cerr << ite->stats << "\t" << ite->chr << "\t" << ite->pos << "\t" << ite->pos + ite->length * cmdline.bin - 1 << std::endl;
+		std::cerr << ite->stats << "\t" << ite->chr << "\t" << ite->pos << "\t" << ite->pos + ite->length - 1  << "\t" << ite->length << std::endl;
 	}
-
-	FilterCnvs(cnvs, cmdline.kmer_table, cmdline.bin);
+/*
+	cnvs.clear();
+	SHmmStats dummy;
+dummy.chr = "2", dummy.pos = 89130741, dummy.length = 391194;
+cnvs.push_back(dummy);
+dummy.chr = "9", dummy.pos = 38764947, dummy.length =  297958;
+cnvs.push_back(dummy);
+dummy.chr = "9", dummy.pos = 46681226, dummy.length =  262284;
+cnvs.push_back(dummy);
+dummy.chr = "14", dummy.pos = 19562127, dummy.length =  856671;
+cnvs.push_back(dummy);
+dummy.chr = "14", dummy.pos = 19572052, dummy.length =  852404;
+cnvs.push_back(dummy);
+dummy.chr = "14", dummy.pos = 106218573, dummy.length =  640474;
+cnvs.push_back(dummy);
+dummy.chr = "15", dummy.pos = 20556430, dummy.length =  622102;
+cnvs.push_back(dummy);
+dummy.chr = "16", dummy.pos = 34466033, dummy.length =  281697;
+cnvs.push_back(dummy);
+dummy.chr = "17", dummy.pos = 44415085, dummy.length =  370099;
+cnvs.push_back(dummy);
+dummy.chr = "22", dummy.pos = 16099642, dummy.length =  359736;
+cnvs.push_back(dummy);
+dummy.chr = "22", dummy.pos = 22712265, dummy.length =  250791;
+cnvs.push_back(dummy);
+dummy.chr = "X", dummy.pos = 88456855, dummy.length =  804069;
+cnvs.push_back(dummy);
+dummy.chr = "X", dummy.pos = 88499792, dummy.length =  355452;
+cnvs.push_back(dummy);
+dummy.chr = "X", dummy.pos = 91539006, dummy.length =  836362;
+cnvs.push_back(dummy);
+*/
+	FilterCnvs(cnvs, cmdline.kmer_table);
 
 	std::cerr << "Message: After filtering." << std::endl;
 	for (std::list<SHmmStats>::const_iterator ite = cnvs.begin(); ite != cnvs.end(); ++ite) {
-		std::cout << ite->stats << "\t" << ite->chr << "\t" << ite->pos << "\t" << ite->pos + ite->length * cmdline.bin - 1 << std::endl;
+		std::cout << ite->stats << "\t" << ite->chr << "\t" << ite->pos << "\t" << ite->pos + ite->length - 1 << "\t" << ite->length << std::endl;
 	}
 
 	// Open a file for outputing log
