@@ -50,6 +50,10 @@ inline bool SortByCoordinate(const SHmmStats & a, const SHmmStats & b) {
 	return a.pos < b.pos;
 }
 
+inline bool SortByCoordinateHeap(const SHmmStatsHeap & a, const SHmmStatsHeap & b) {
+	return a.hmm_stats.pos < b.hmm_stats.pos;
+}
+
 inline bool SortByLength(const SHmmStatsHeap & a, const SHmmStatsHeap & b) {
 	return a.hmm_stats.length < b.hmm_stats.length;
 }
@@ -80,7 +84,7 @@ inline bool CheckMerge(SHmmStats & pilot, const SHmmStats & target) {
 void ConsolidateStats(std::vector <SHmmStatsHeap> & smooth_result, std::vector <SHmmStatsHeap> & heap) {
 	std::sort(heap.begin(), heap.end(), SortByLength);
 	for (std::vector <SHmmStatsHeap>::reverse_iterator ite = heap.rbegin(); ite != heap.rend(); ++ite) {
-		if (!ite->merged && ite->hmm_stats.stats != 3) {
+		if (!smooth_result[ite->id].merged && ite->hmm_stats.stats != 3) {
 			// Forward merging
 			for (unsigned int i = ite->id + 1; i < smooth_result.size(); ++i) {
 				if (smooth_result[i].merged) break;
@@ -176,6 +180,15 @@ void SmoothStats(std::vector<SHmmStats> & cnvs, const std::string & ref_name,
 	// Merge segments from the largest one
 	std::vector <SHmmStatsHeap> heap = smooth_result;
 	ConsolidateStats(smooth_result, heap);
+
+#ifdef DEBUG
+	std::sort(heap.begin(), heap.end(), SortByCoordinateHeap);
+	std::cerr << "HMM after consolidating" << std::endl;
+	for (std::vector <SHmmStatsHeap>::const_iterator ite = heap.begin(); ite != heap.end(); ++ite) {
+		std::cerr << ite->hmm_stats.pos << "\t" << ite->hmm_stats.stats << "\t" << ite->hmm_stats.length << "\t" 
+			<< (smooth_result[ite->id].merged ? "MERGED: T" : "MERGED: F") << std::endl;
+	}
+#endif
 
 	// Dump the final results	
 	for (std::vector <SHmmStatsHeap>::const_iterator ite = heap.begin(); ite != heap.end(); ++ite) {

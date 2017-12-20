@@ -299,7 +299,7 @@ void FilterCnvs(std::vector<SHmmStats> & cnvs, const std::string kmer_table) {
 
 			int leading_remove = 0;
 			for (std::vector<float>::const_iterator kmer_ite = uniq_kmers.begin(); kmer_ite != uniq_kmers.end(); ++kmer_ite) {
-				if (*kmer_ite < 0.5) {
+				if (*kmer_ite < 0.7) {
 					ite->pos += (ite->length / kmer_bin);
 					ite->length -= std::min(ite->length, (ite->length / kmer_bin));
 					++leading_remove;
@@ -310,7 +310,7 @@ void FilterCnvs(std::vector<SHmmStats> & cnvs, const std::string kmer_table) {
 
 			int tailing_remove = 0;
 			for (std::vector<float>::const_reverse_iterator kmer_ite = uniq_kmers.rbegin(); kmer_ite != uniq_kmers.rend(); ++kmer_ite) {
-				if (*kmer_ite < 0.5) {
+				if (*kmer_ite < 0.7) {
 					ite->length -= std::min(ite->length, (ite->length / kmer_bin));
 					++tailing_remove;
 				} else {
@@ -320,13 +320,14 @@ void FilterCnvs(std::vector<SHmmStats> & cnvs, const std::string kmer_table) {
 
 			int uniq_kmer_count = 0;
 			for (std::vector<float>::const_iterator kmer_ite = uniq_kmers.begin(); kmer_ite != uniq_kmers.end(); ++kmer_ite)
-				if (*kmer_ite > 0.5) ++uniq_kmer_count;
+				if (*kmer_ite > 0.7) ++uniq_kmer_count;
 
 			std::cerr << uniq_kmer_count << "\t" << leading_remove << "\t" << tailing_remove << "\t" << uniq_kmer_count / static_cast<float>(kmer_bin - leading_remove - tailing_remove) << std::endl;
 			if (uniq_kmer_count / static_cast<float>(kmer_bin - leading_remove - tailing_remove) > 0.7) { // the entire region pass the filter
-				++ite; 
+				++ite;
 			} else { // too many non uniq blocks
-				cnvs.erase(ite++);
+				cnvs.erase(ite);
+				if (ite != cnvs.end()) ++ite;
 			}
 		}
 	}
@@ -509,7 +510,8 @@ cnvs.push_back(dummy);
 
 	std::cerr << "Message: After filtering." << std::endl;
 	for (std::vector<SHmmStats>::const_iterator ite = cnvs.begin(); ite != cnvs.end(); ++ite) {
-		std::cout << ite->stats << "\t" << ite->chr << "\t" << ite->pos << "\t" << ite->pos + ite->length - 1 << "\t" << ite->length << std::endl;
+		if (ite->length > 250000)
+			std::cout << ite->stats << "\t" << ite->chr << "\t" << ite->pos << "\t" << ite->pos + ite->length - 1 << "\t" << ite->length << std::endl;
 	}
 
 	// Open a file for outputing log
