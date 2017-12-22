@@ -267,7 +267,7 @@ void PrintResults(std::ofstream & log, std::stringstream & bam_signal_out, std::
 	}
 }
 
-void FilterCnvs(std::vector<SHmmStats> & cnvs, const std::string kmer_table) {
+void FilterCnvs(std::vector<SHmmStats> & cnvs, const std::string kmer_table, const float & unique_kmer, const float & kmer_score) {
 	std::string chr_name, kmer_seq;
 	bool load_kmer = false;
 	std::vector<SHmmStats>::iterator ite = cnvs.begin();
@@ -286,11 +286,11 @@ void FilterCnvs(std::vector<SHmmStats> & cnvs, const std::string kmer_table) {
 			for (unsigned int i = 0; i < kmer_bin; ++i) {
 				for (unsigned int j = ite->pos + (i * ite->length / kmer_bin);
 					j < ite->pos + ((i + 1) * ite->length / kmer_bin) && j < kmer_seq.size() - 1; ++j) {
-					const unsigned int kmer_score = static_cast<unsigned int>(kmer_seq[j]) - 33;
-					if (kmer_score == 1)
+					const unsigned int kmer_scale = static_cast<unsigned int>(kmer_seq[j]) - 33;
+					if (kmer_scale == 1)
 						++uniq_kmers[i];
-					if (kmer_score == 2)
-						uniq_kmers[i] += 0.5;
+					if (kmer_scale == 2)
+						uniq_kmers[i] += kmer_score;
 				}
 				uniq_kmers[i] = uniq_kmers[i] / (ite->length / static_cast<float>(kmer_bin));
 				std::cerr << i << "\t" << uniq_kmers[i] << std::endl;
@@ -299,7 +299,7 @@ void FilterCnvs(std::vector<SHmmStats> & cnvs, const std::string kmer_table) {
 
 			int leading_remove = 0;
 			for (std::vector<float>::const_iterator kmer_ite = uniq_kmers.begin(); kmer_ite != uniq_kmers.end(); ++kmer_ite) {
-				if (*kmer_ite < 0.7) {
+				if (*kmer_ite < unique_kmer) {
 					ite->pos += (ite->length / kmer_bin);
 					ite->length -= std::min(ite->length, (ite->length / kmer_bin));
 					++leading_remove;
@@ -310,7 +310,7 @@ void FilterCnvs(std::vector<SHmmStats> & cnvs, const std::string kmer_table) {
 
 			int tailing_remove = 0;
 			for (std::vector<float>::const_reverse_iterator kmer_ite = uniq_kmers.rbegin(); kmer_ite != uniq_kmers.rend(); ++kmer_ite) {
-				if (*kmer_ite < 0.7) {
+				if (*kmer_ite < unique_kmer) {
 					ite->length -= std::min(ite->length, (ite->length / kmer_bin));
 					++tailing_remove;
 				} else {
@@ -320,7 +320,7 @@ void FilterCnvs(std::vector<SHmmStats> & cnvs, const std::string kmer_table) {
 
 			int uniq_kmer_count = 0;
 			for (std::vector<float>::const_iterator kmer_ite = uniq_kmers.begin(); kmer_ite != uniq_kmers.end(); ++kmer_ite)
-				if (*kmer_ite > 0.7) ++uniq_kmer_count;
+				if (*kmer_ite > unique_kmer) ++uniq_kmer_count;
 
 			std::cerr << uniq_kmer_count << "\t" << leading_remove << "\t" << tailing_remove << "\t" << uniq_kmer_count / static_cast<float>(kmer_bin - leading_remove - tailing_remove) << std::endl;
 			if (uniq_kmer_count / static_cast<float>(kmer_bin - leading_remove - tailing_remove) > 0.7) { // the entire region pass the filter
@@ -506,7 +506,7 @@ cnvs.push_back(dummy);
 dummy.chr = "X", dummy.pos = 91539006, dummy.length =  836362;
 cnvs.push_back(dummy);
 */
-	FilterCnvs(cnvs, cmdline.kmer_table);
+	FilterCnvs(cnvs, cmdline.kmer_table, cmdline.unique_kmer, cmdline.kmer_score);
 
 	std::cerr << "Message: After filtering." << std::endl;
 	for (std::vector<SHmmStats>::const_iterator ite = cnvs.begin(); ite != cnvs.end(); ++ite) {

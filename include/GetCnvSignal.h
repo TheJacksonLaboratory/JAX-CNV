@@ -22,6 +22,8 @@ struct SGetCnvSignalCml {
 	bool ascii = false;	// --ascii
 	int bin = 1;		// --bin
 	std::string log;	// --log
+	float unique_kmer = 0.7;	// --unique_kmer
+	float kmer_score = 0.5;	// --kmer_score
 	
 	// command line
 	std::string cmd;
@@ -44,7 +46,9 @@ struct SGetCnvSignalCml {
 		std::string("	-r --region chr:begin-end	Specify a target region.\n") +
 		std::string("	--ascii				Report kmer count in ASCII: (log2(#) + 1) + 33.\n") +
 		std::string("	--bin <INT>			Report a result for each # bp. [1]\n") +
-		std::string("	--log <FILE>			Log output.\n");
+		std::string("	--log <FILE>			Log output.\n" +
+		std::string("	--unique_kmer <FLOAT>		Require percentage of unique kmer to report a CNV. [0.7]\n") +
+		std::string("	--kmer_score <FLOAT>		Score for log2(kmer count) = 2 positions. [0.5]\n"));
 	}
 
 	// Check the required arguments.
@@ -64,6 +68,14 @@ struct SGetCnvSignalCml {
 		}
 		if (fasta.empty()) {
 			std::cerr << "ERROR: -f <FASTA> is required." << std::endl;
+			ok = false;
+		}
+		if (unique_kmer > 1) {
+			std::cerr << "ERROR: --unique_kmer <FLOAT> should not larger than 1." << std::endl;
+			ok = false;
+		}
+		if (kmer_score > 1) {
+			std::cerr << "ERROR: --kmer_score <FLOAT> should not larger than 1." << std::endl;
 			ok = false;
 		}
 
@@ -87,6 +99,8 @@ struct SGetCnvSignalCml {
 			{"ascii", no_argument, NULL, 1},
 			{"bin", required_argument, NULL, 2},
 			{"log", required_argument, NULL, 3},
+			{"unique_kmer", required_argument, NULL, 4},
+			{"kmer_score", required_argument, NULL, 5},
 			{0,0,0,0}
 		};
 		int option_index = 0;
@@ -103,6 +117,8 @@ struct SGetCnvSignalCml {
 				case 1: ascii = true; break;
 				case 2: bin = atoi(optarg); break;
 				case 3: log = optarg; break;
+				case 4: unique_kmer = atof(optarg); break;
+				case 5: kmer_score = atof(optarg); break;
 				default: std::cerr << "WARNING: Unkonw parameter: " << long_option[option_index].name << std::endl; break;
 			}
 		}
