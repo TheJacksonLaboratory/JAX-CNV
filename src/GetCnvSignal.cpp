@@ -363,15 +363,6 @@ int GetCnvSignal::Run () const {
 	}
 	*/
 
-	{
-		samFile * bam_reader = sam_open(cmdline.bam.c_str(), "r");
-		if (!bam_reader) {
-			std::cerr << "ERROR: Cannot open BAM file." << std::endl;
-			return 1;
-		}
-		sam_close(bam_reader);
-	}
-
 	// Parse region.
 	// Parse region from the command line or parse regions from the bam header.
 	std::list<Fastaq::SRegion> regions;

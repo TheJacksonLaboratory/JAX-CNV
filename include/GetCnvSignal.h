@@ -1,6 +1,8 @@
 #ifndef _GETCNVSIGNAL_H_
 #define _GETCNVSIGNAL_H_
 
+#include <sys/stat.h>
+#include <unistd.h>
 #include <getopt.h>
 #include <string>
 
@@ -32,7 +34,7 @@ struct SGetCnvSignalCml {
 
 	// Help list
 	const std::string Help (const char* program) const { return
-		std::string("USAGE: ") + program + std::string(" -i <jellyfish_db> -f <FASTA>\n\n") +
+		std::string("USAGE: ") + program + std::string(" -f <FASTA> -k <kmer_table> -b <BAM>\n\n") +
 		std::string("	-h --help			Print this help list.\n") +
 		std::string("\n") +
 		std::string("Input & Output:\n") +
@@ -61,15 +63,27 @@ struct SGetCnvSignalCml {
 		if (bam.empty()) {
 			std::cerr << "ERROR: -b <BAM> is required." << std::endl;
 			ok = false;
+		} else if (access(bam.c_str(), F_OK) == -1) {
+			std::cerr << "ERROR: Cannot open " << bam << std::endl;
+			ok = false;
 		}
+
 		if (kmer_table.empty()) {
 			std::cerr << "ERROR: -k <kmer_table> is required." << std::endl;
 			ok = false;
+		} else if (access(kmer_table.c_str(), F_OK) == -1) {
+			std::cerr << "ERROR: Cannot open " << kmer_table << std::endl;
+			ok = false;
 		}
+
 		if (fasta.empty()) {
 			std::cerr << "ERROR: -f <FASTA> is required." << std::endl;
 			ok = false;
+		} else if (access(fasta.c_str(), F_OK) == -1) {
+			std::cerr << "ERROR: Cannot open " << fasta << std::endl;
+			ok = false;
 		}
+
 		if (unique_kmer > 1) {
 			std::cerr << "ERROR: --unique_kmer <FLOAT> should not larger than 1." << std::endl;
 			ok = false;
