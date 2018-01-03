@@ -20,7 +20,7 @@ struct SGetCnvSignalCml {
 	int coverage = 0;	// -c --coverage
 	std::string region;     // -r --region
 	bool ascii = false;	// --ascii
-	int bin = 1;		// --bin
+	int bin = 50;		// --bin
 	std::string log;	// --log
 	float unique_kmer = 0.4;	// --unique_kmer
 	float kmer_score = 0.2;	// --kmer_score
@@ -45,10 +45,10 @@ struct SGetCnvSignalCml {
 		std::string("	-c --coverage <INT>		Specify the coverage.\n") +
 		std::string("	-r --region chr:begin-end	Specify a target region.\n") +
 		std::string("	--ascii				Report kmer count in ASCII: (log2(#) + 1) + 33.\n") +
-		std::string("	--bin <INT>			Report a result for each # bp. [1]\n") +
+		std::string("	--bin <INT>			Report a result for each # bp. [50]\n") +
 		std::string("	--log <FILE>			Log output.\n" +
-		std::string("	--unique_kmer <FLOAT>		Require percentage of unique kmer to report a CNV. [0.7]\n") +
-		std::string("	--kmer_score <FLOAT>		Score for log2(kmer count) = 2 positions. [0.5]\n"));
+		std::string("	--unique_kmer <FLOAT>		Require percentage of unique kmer to report a CNV. [0.4]\n") +
+		std::string("	--kmer_score <FLOAT>		Score for log2(kmer count) = 2 positions. [0.2]\n"));
 	}
 
 	// Check the required arguments.
