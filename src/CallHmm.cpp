@@ -192,7 +192,7 @@ void SmoothStats(std::vector<SHmmStats> & cnvs, const std::string & ref_name,
 
 	// Dump the final results	
 	for (std::vector <SHmmStatsHeap>::const_iterator ite = heap.begin(); ite != heap.end(); ++ite) {
-		if (!smooth_result[ite->id].merged && ite->hmm_stats.stats != 3 && ite->hmm_stats.length > 250000) {
+		if (!smooth_result[ite->id].merged && ite->hmm_stats.stats != 3 && ite->hmm_stats.length > 45000) {
 			cnvs.push_back(ite->hmm_stats);
 			cnvs.back().chr = ref_name;
 		}

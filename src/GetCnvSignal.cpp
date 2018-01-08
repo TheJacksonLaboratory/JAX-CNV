@@ -59,31 +59,34 @@ struct SBamData {
 
 // Func: Once alignments in a bin have been processed, then dump the info we collect for this bin.
 //       Also, clean the info for the next bin.
-void PrintCleanBamData (SBamData & bam_data, std::vector <SReadDepth> & hmm_rd, const int & max_pos) {
+void PrintCleanBamData (SBamData & bam_data, std::vector <SReadDepth> & hmm_rd, std::stringstream & bam_signal_out, const bool output_bam_signal, const int & max_pos) {
 	// If the max_pos means the last element.
 	const int cur_pos = !bam_data.read_depth.empty() && max_pos == std::numeric_limits<std::int32_t>::max()
 				? bam_data.read_depth.back().pos : max_pos;
-	std::cout << cur_pos << "\t";
 
-	if (bam_data.total_read == 0) {
-		std::cout << "0\t0\t0\t0\t0\t0\t0\t";
-	} else {
-		std::cout << bam_data.total_read << "\t" << bam_data.paired_reads << "\t" // total reads and total paired-end reads
+	if (output_bam_signal) {
+		std::cout << cur_pos << "\t";
+
+		if (bam_data.total_read == 0) {
+			std::cout << "0\t0\t0\t0\t0\t0\t0\t";
+		} else {
+			std::cout << bam_data.total_read << "\t" << bam_data.paired_reads << "\t" // total reads and total paired-end reads
 				<< bam_data.proper_pairs << "\t" // proper pairs
 				<< bam_data.inproper_pairs << "\t" // inproper pairs
 				<< bam_data.mate_unmapped << "\t"; // mate unmapped
 	
-		// Isize
-		uint64_t sum = 0;
-		for (std::vector<unsigned int>::const_iterator ite = bam_data.isizes.begin(); ite != bam_data.isizes.end(); ++ite)
-			sum += *ite;
-		std::cout << sum / static_cast<double>(bam_data.total_read) << "\t";
+			// Isize
+			uint64_t sum = 0;
+			for (std::vector<unsigned int>::const_iterator ite = bam_data.isizes.begin(); ite != bam_data.isizes.end(); ++ite)
+				sum += *ite;
+			std::cout << sum / static_cast<double>(bam_data.total_read) << "\t";
 
-		// Softclip
-		sum = 0;
-		for (std::vector<unsigned int>::const_iterator ite = bam_data.softclips.begin(); ite != bam_data.softclips.end(); ++ite)
-			sum += *ite;
-		std::cout << sum / static_cast<double>(bam_data.total_read) << "\t";
+			// Softclip
+			sum = 0;
+			for (std::vector<unsigned int>::const_iterator ite = bam_data.softclips.begin(); ite != bam_data.softclips.end(); ++ite)
+				sum += *ite;
+			std::cout << sum / static_cast<double>(bam_data.total_read) << "\t";
+		}
 	}
 
 	// Read depth
@@ -94,7 +97,9 @@ void PrintCleanBamData (SBamData & bam_data, std::vector <SReadDepth> & hmm_rd, 
 		sum += bam_data.read_depth.front().count;
 		bam_data.read_depth.erase(bam_data.read_depth.begin());;
 	}
-	std::cout << (pos_count == 0 ? 0 : sum / static_cast<double>(pos_count)) << std::endl;
+
+	if (output_bam_signal)
+		std::cout << (pos_count == 0 ? 0 : sum / static_cast<double>(pos_count)) << std::endl;
 
 	SReadDepth rd_tmp(cur_pos, round(sum / static_cast<double>(pos_count)));
 	hmm_rd.push_back(rd_tmp);
@@ -200,7 +205,8 @@ void ProcessAlignment (SBamData & bam_data, const bam1_t * aln) {
 //       For each alignment, Function ProcessAlignment will extract info the alignment.
 //       HMM using read depths is also embedded.
 // @ref: We can access bases of the entire chromosome from ref.
-void ProcessBam (std::vector <SReadDepth> & hmm_rd, const char * bam_filename, const Fastaq::SRegion & region,
+void ProcessBam (std::vector <SReadDepth> & hmm_rd, std::stringstream & bam_signal_out, const bool output_bam_signal, 
+			const char * bam_filename, const Fastaq::SRegion & region,
 			const int & bin, const std::string & ref) {
 	samFile * bam_reader = sam_open(bam_filename, "r");
 
@@ -225,7 +231,7 @@ void ProcessBam (std::vector <SReadDepth> & hmm_rd, const char * bam_filename, c
 			if ((cur_bin > pre_bin) && (cur_bin != pre_bin)) {
 				// Every bin in the region between pre_bin and cur_bin will be padded.
 				for (int i = pre_bin; i < cur_bin; ++i){
-					PrintCleanBamData(bam_data, hmm_rd, (i + 1) * bin - 1); // (i + 1) * bin - 1 for giving the max pos of the bin.
+					PrintCleanBamData(bam_data, hmm_rd, bam_signal_out, output_bam_signal, (i + 1) * bin - 1); // (i + 1) * bin - 1 for giving the max pos of the bin.
 					// Calculate the number of N's in this region.
 					hmm_rd.back().n_count = 0;
 					//TODO: The for loop seems slow.
@@ -243,8 +249,6 @@ void ProcessBam (std::vector <SReadDepth> & hmm_rd, const char * bam_filename, c
 		// Clean up
 		hts_itr_destroy(ite);
 	}
-	
-	//PrintCleanBamData(bam_data, std::numeric_limits<std::int32_t>::max());
 
 	// Clean up
 	bam_destroy1(aln);
@@ -253,7 +257,8 @@ void ProcessBam (std::vector <SReadDepth> & hmm_rd, const char * bam_filename, c
 	bam_data.Clean();
 }
 
-void PrintResults(std::ofstream & log, std::stringstream & bam_signal_out, std::stringstream & count_kmer_out, const bool have_count_kmer_out) {
+void PrintResults(std::ofstream & log, std::stringstream & bam_signal_out, std::stringstream & count_kmer_out) {
+	const bool have_count_kmer_out = false;
 	log << "#POS\tREADS\tPAIRED\tPROPER_PAIRS\tINPROPER_PAIRS\tMATE_UNMAPPED\tISIZE\tSOFTCLIPS\tREAD_DEPTH"
 			<< (!have_count_kmer_out ? "\n" : "\tKMER_COUNT\n");
 	while (!bam_signal_out.eof()) { // The bam_signal_out is the major player here.
@@ -435,16 +440,12 @@ int GetCnvSignal::Run () const {
 		std::cerr << "Message: The estimated coverage is " << coverage << std::endl;
 	}
 
-	// Re-direct cout
-	coutbuf = std::cout.rdbuf(); //save old buf
-	std::stringstream bam_signal_out;
-	std::cout.rdbuf(bam_signal_out.rdbuf()); //redirect std::cout to bam_signal_out
-
 	// Process BAM by regions
 	std::string ref_seq;
 	//std::string kmer_seq;
 	std::string ref_name;
 	std::vector<SHmmStats> cnvs;
+	std::stringstream bam_signal_out;
 	for (std::list<Fastaq::SRegion>::const_iterator ite = regions.begin(); ite != regions.end(); ++ite) {
 		std::cerr << "Message: Processing " << ite->chr << ":" << ite->begin << "-" << ite->end << std::endl;
 		// The chromosome is not in ref. Load it from fasta.
@@ -464,11 +465,10 @@ int GetCnvSignal::Run () const {
 		}
 		
 		std::vector <SReadDepth> hmm_rd; // The list to collect read depth info for HMM.
-		ProcessBam(hmm_rd, cmdline.bam.c_str(), *ite, cmdline.bin, ref_seq);
+		ProcessBam(hmm_rd, bam_signal_out, !cmdline.log.empty(), cmdline.bam.c_str(), *ite, cmdline.bin, ref_seq);
 		// Perform HMM	
 		CallHmm::HmmAndViterbi(cnvs, ref_name, hmm_rd, cmdline.bin, coverage);
 	}
-	std::cout.rdbuf(coutbuf); //reset to standard output again
 
 	std::cerr << "Message: HMM completes." << std::endl;
 	for (std::vector<SHmmStats>::const_iterator ite = cnvs.begin(); ite != cnvs.end(); ++ite) {
@@ -510,7 +510,7 @@ cnvs.push_back(dummy);
 
 	std::cerr << "Message: After filtering." << std::endl;
 	for (std::vector<SHmmStats>::const_iterator ite = cnvs.begin(); ite != cnvs.end(); ++ite) {
-		if (ite->length > 250000)
+		if (ite->length > 45000)
 			std::cout << ite->stats << "\t" << ite->chr << "\t" << ite->pos << "\t" << ite->pos + ite->length - 1 << "\t" << ite->length << std::endl;
 	}
 
@@ -518,7 +518,7 @@ cnvs.push_back(dummy);
 	if (!cmdline.log.empty()) {
 		std::ofstream log;
 		log.open(cmdline.log, std::ofstream::out);
-		//PrintResults(log, bam_signal_out, count_kmer_out, (!cmdline.input_jfdb.empty() && !cmdline.fasta.empty()));
+		PrintResults(log, bam_signal_out, count_kmer_out);
 		log.close();
 	}
 
