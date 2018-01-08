@@ -47,7 +47,8 @@ void PrintHmm (const HMM& hmm, const int& T, const int* O) {
 }
 
 inline bool SortByCoordinate(const SHmmStats & a, const SHmmStats & b) {
-	return a.pos < b.pos;
+	if (a.chr != b.chr) return a.chr < b.chr;
+	else return a.pos < b.pos;
 }
 
 inline bool SortByCoordinateHeap(const SHmmStatsHeap & a, const SHmmStatsHeap & b) {

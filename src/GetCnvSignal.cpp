@@ -65,12 +65,12 @@ void PrintCleanBamData (SBamData & bam_data, std::vector <SReadDepth> & hmm_rd, 
 				? bam_data.read_depth.back().pos : max_pos;
 
 	if (output_bam_signal) {
-		std::cout << cur_pos << "\t";
+		bam_signal_out << cur_pos << "\t";
 
 		if (bam_data.total_read == 0) {
-			std::cout << "0\t0\t0\t0\t0\t0\t0\t";
+			bam_signal_out << "0\t0\t0\t0\t0\t0\t0\t";
 		} else {
-			std::cout << bam_data.total_read << "\t" << bam_data.paired_reads << "\t" // total reads and total paired-end reads
+			bam_signal_out << bam_data.total_read << "\t" << bam_data.paired_reads << "\t" // total reads and total paired-end reads
 				<< bam_data.proper_pairs << "\t" // proper pairs
 				<< bam_data.inproper_pairs << "\t" // inproper pairs
 				<< bam_data.mate_unmapped << "\t"; // mate unmapped
@@ -79,13 +79,13 @@ void PrintCleanBamData (SBamData & bam_data, std::vector <SReadDepth> & hmm_rd, 
 			uint64_t sum = 0;
 			for (std::vector<unsigned int>::const_iterator ite = bam_data.isizes.begin(); ite != bam_data.isizes.end(); ++ite)
 				sum += *ite;
-			std::cout << sum / static_cast<double>(bam_data.total_read) << "\t";
+			bam_signal_out << sum / static_cast<double>(bam_data.total_read) << "\t";
 
 			// Softclip
 			sum = 0;
 			for (std::vector<unsigned int>::const_iterator ite = bam_data.softclips.begin(); ite != bam_data.softclips.end(); ++ite)
 				sum += *ite;
-			std::cout << sum / static_cast<double>(bam_data.total_read) << "\t";
+			bam_signal_out << sum / static_cast<double>(bam_data.total_read) << "\t";
 		}
 	}
 
@@ -99,7 +99,7 @@ void PrintCleanBamData (SBamData & bam_data, std::vector <SReadDepth> & hmm_rd, 
 	}
 
 	if (output_bam_signal)
-		std::cout << (pos_count == 0 ? 0 : sum / static_cast<double>(pos_count)) << std::endl;
+		bam_signal_out << (pos_count == 0 ? 0 : sum / static_cast<double>(pos_count)) << "\t";
 
 	SReadDepth rd_tmp(cur_pos, round(sum / static_cast<double>(pos_count)));
 	hmm_rd.push_back(rd_tmp);
@@ -207,7 +207,7 @@ void ProcessAlignment (SBamData & bam_data, const bam1_t * aln) {
 // @ref: We can access bases of the entire chromosome from ref.
 void ProcessBam (std::vector <SReadDepth> & hmm_rd, std::stringstream & bam_signal_out, const bool output_bam_signal, 
 			const char * bam_filename, const Fastaq::SRegion & region,
-			const int & bin, const std::string & ref) {
+			const int & bin, const std::string & ref, const std::string & kmer_seq) {
 	samFile * bam_reader = sam_open(bam_filename, "r");
 
 	bam_hdr_t *header;
@@ -240,6 +240,16 @@ void ProcessBam (std::vector <SReadDepth> & hmm_rd, std::stringstream & bam_sign
 						if (*s_ite == 'N') 
 							++(hmm_rd.back().n_count);
 					}
+					// Keep kmer in bam_signal_out
+					if (output_bam_signal) {
+						unsigned int kmer_score = 0;
+						for (std::string::const_iterator s_ite = std::next(kmer_seq.begin(), i * bin);
+							s_ite != kmer_seq.end() && s_ite != std::next(kmer_seq.begin(), (i + 1) * bin - 1); ++s_ite) {
+								if (static_cast<unsigned int>(*s_ite) - 33 > 0)
+									kmer_score += static_cast<unsigned int>(*s_ite) - 33 - 1;
+						}
+						bam_signal_out << kmer_score / static_cast<float>(bin) << std::endl;
+					}
 				}
 				pre_bin = cur_bin;
 			}
@@ -257,18 +267,13 @@ void ProcessBam (std::vector <SReadDepth> & hmm_rd, std::stringstream & bam_sign
 	bam_data.Clean();
 }
 
-void PrintResults(std::ofstream & log, std::stringstream & bam_signal_out, std::stringstream & count_kmer_out) {
+void PrintResults(std::ofstream & log, std::stringstream & bam_signal_out) {
 	const bool have_count_kmer_out = false;
-	log << "#POS\tREADS\tPAIRED\tPROPER_PAIRS\tINPROPER_PAIRS\tMATE_UNMAPPED\tISIZE\tSOFTCLIPS\tREAD_DEPTH"
-			<< (!have_count_kmer_out ? "\n" : "\tKMER_COUNT\n");
+	log << "#POS\tREADS\tPAIRED\tPROPER_PAIRS\tINPROPER_PAIRS\tMATE_UNMAPPED\tISIZE\tSOFTCLIPS\tREAD_DEPTH\tKMER_COUNT\n";
 	while (!bam_signal_out.eof()) { // The bam_signal_out is the major player here.
 		std::string tmp;
 		if (std::getline(bam_signal_out, tmp).eof()) break;
-		log << tmp;
-		if (have_count_kmer_out && !std::getline(count_kmer_out, tmp).eof()) {
-			log << "\t" << tmp;
-		}
-		log << std::endl;
+		log << tmp << std::endl;
 	}
 }
 
@@ -351,23 +356,6 @@ int GetCnvSignal::Run () const {
 		return 1;
 	}
 
-	// coutbuf for storing the result of count_kmer.
-	// Since count_kmer prints out result on std::cout, we need to redirect std::cout buffer.
-	std::streambuf * coutbuf = std::cout.rdbuf(); //save old buf
-	std::stringstream count_kmer_out;
-	/*
-	// Perform GrabJellyfishKmer
-	if (!cmdline.input_jfdb.empty() && !cmdline.fasta.empty()) {
-		std::cout.rdbuf(count_kmer_out.rdbuf()); //redirect std::cout to count_kmer_out
-		// rle = false
-		// output is controlled by count_kmer_out
-		GrabJellyfishKmer count_kmer(cmdline.input_jfdb.c_str(), cmdline.fasta.c_str(), NULL, 
-					cmdline.region.c_str(), cmdline.bin, cmdline.ascii, false);
-		count_kmer.Run();
-		std::cout.rdbuf(coutbuf); //reset to standard output again
-	}
-	*/
-
 	// Parse region.
 	// Parse region from the command line or parse regions from the bam header.
 	std::list<Fastaq::SRegion> regions;
@@ -441,9 +429,7 @@ int GetCnvSignal::Run () const {
 	}
 
 	// Process BAM by regions
-	std::string ref_seq;
-	//std::string kmer_seq;
-	std::string ref_name;
+	std::string ref_seq, kmer_seq, ref_name;
 	std::vector<SHmmStats> cnvs;
 	std::stringstream bam_signal_out;
 	for (std::list<Fastaq::SRegion>::const_iterator ite = regions.begin(); ite != regions.end(); ++ite) {
@@ -457,15 +443,17 @@ int GetCnvSignal::Run () const {
 				return 1;
 			}
 			std::cerr << "Message: Loading chromosome " << ite->chr << " is done." << std::endl;
-			//if (!Fastaq::FastaLoad(kmer_seq, cmdline.kmer_table.c_str(), true, ite->chr.c_str())) {
-			//	std::cerr << "ERROR: Cannot load kmer seqeunces " << ite->chr << " from " << cmdline.kmer_table << std::endl;
-			//	return 1;
-			//}
-			//std::cerr << "Message: Loading kmer of chromosome " << ite->chr << " is done." << std::endl;
+			if (!cmdline.log.empty()) { // Need to output kmer
+				if (!Fastaq::FastaLoad(kmer_seq, cmdline.kmer_table.c_str(), true, ite->chr.c_str())) {
+					std::cerr << "ERROR: Cannot load kmer seqeunces " << ite->chr << " from " << cmdline.kmer_table << std::endl;
+					return 1;
+				}
+				std::cerr << "Message: Loading kmer of chromosome " << ite->chr << " is done." << std::endl;
+			}
 		}
 		
 		std::vector <SReadDepth> hmm_rd; // The list to collect read depth info for HMM.
-		ProcessBam(hmm_rd, bam_signal_out, !cmdline.log.empty(), cmdline.bam.c_str(), *ite, cmdline.bin, ref_seq);
+		ProcessBam(hmm_rd, bam_signal_out, !cmdline.log.empty(), cmdline.bam.c_str(), *ite, cmdline.bin, ref_seq, kmer_seq);
 		// Perform HMM	
 		CallHmm::HmmAndViterbi(cnvs, ref_name, hmm_rd, cmdline.bin, coverage);
 	}
@@ -474,38 +462,7 @@ int GetCnvSignal::Run () const {
 	for (std::vector<SHmmStats>::const_iterator ite = cnvs.begin(); ite != cnvs.end(); ++ite) {
 		std::cerr << ite->stats << "\t" << ite->chr << "\t" << ite->pos << "\t" << ite->pos + ite->length - 1  << "\t" << ite->length << std::endl;
 	}
-/*
-	cnvs.clear();
-	SHmmStats dummy;
-dummy.chr = "2", dummy.pos = 89130741, dummy.length = 391194;
-cnvs.push_back(dummy);
-dummy.chr = "9", dummy.pos = 38764947, dummy.length =  297958;
-cnvs.push_back(dummy);
-dummy.chr = "9", dummy.pos = 46681226, dummy.length =  262284;
-cnvs.push_back(dummy);
-dummy.chr = "14", dummy.pos = 19562127, dummy.length =  856671;
-cnvs.push_back(dummy);
-dummy.chr = "14", dummy.pos = 19572052, dummy.length =  852404;
-cnvs.push_back(dummy);
-dummy.chr = "14", dummy.pos = 106218573, dummy.length =  640474;
-cnvs.push_back(dummy);
-dummy.chr = "15", dummy.pos = 20556430, dummy.length =  622102;
-cnvs.push_back(dummy);
-dummy.chr = "16", dummy.pos = 34466033, dummy.length =  281697;
-cnvs.push_back(dummy);
-dummy.chr = "17", dummy.pos = 44415085, dummy.length =  370099;
-cnvs.push_back(dummy);
-dummy.chr = "22", dummy.pos = 16099642, dummy.length =  359736;
-cnvs.push_back(dummy);
-dummy.chr = "22", dummy.pos = 22712265, dummy.length =  250791;
-cnvs.push_back(dummy);
-dummy.chr = "X", dummy.pos = 88456855, dummy.length =  804069;
-cnvs.push_back(dummy);
-dummy.chr = "X", dummy.pos = 88499792, dummy.length =  355452;
-cnvs.push_back(dummy);
-dummy.chr = "X", dummy.pos = 91539006, dummy.length =  836362;
-cnvs.push_back(dummy);
-*/
+
 	FilterCnvs(cnvs, cmdline.kmer_table, cmdline.unique_kmer, cmdline.kmer_score);
 
 	std::cerr << "Message: After filtering." << std::endl;
@@ -518,7 +475,7 @@ cnvs.push_back(dummy);
 	if (!cmdline.log.empty()) {
 		std::ofstream log;
 		log.open(cmdline.log, std::ofstream::out);
-		PrintResults(log, bam_signal_out, count_kmer_out);
+		PrintResults(log, bam_signal_out);
 		log.close();
 	}
 
