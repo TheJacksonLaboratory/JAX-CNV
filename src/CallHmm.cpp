@@ -91,9 +91,9 @@ void ConsolidateStats(std::vector <SHmmStatsHeap> & smooth_result, std::vector <
 				if (smooth_result[i].merged) break;
 				if (smooth_result[i].hmm_stats.stats == 3) continue;
 				const bool consistant_type = ((ite->hmm_stats.stats == 1 || ite->hmm_stats.stats == 2) 
-									&& smooth_result[i].hmm_stats.stats == 1 || smooth_result[i].hmm_stats.stats == 2)
+									&& (smooth_result[i].hmm_stats.stats == 1 || smooth_result[i].hmm_stats.stats == 2))
 								|| ((ite->hmm_stats.stats == 4 || ite->hmm_stats.stats == 5)
-									&& smooth_result[i].hmm_stats.stats == 4 || smooth_result[i].hmm_stats.stats == 5);
+									&& (smooth_result[i].hmm_stats.stats == 4 || smooth_result[i].hmm_stats.stats == 5));
 				if (!consistant_type) { // Different stats
 					break;
 				} else {
@@ -108,9 +108,9 @@ void ConsolidateStats(std::vector <SHmmStatsHeap> & smooth_result, std::vector <
 				if (smooth_result[i - 1].merged) break;
 				if (smooth_result[i - 1].hmm_stats.stats == 3) continue;
 				const bool consistant_type = ((ite->hmm_stats.stats == 1 || ite->hmm_stats.stats == 2) 
-									&& smooth_result[i - 1].hmm_stats.stats == 1 || smooth_result[i - 1].hmm_stats.stats == 2)
+									&& (smooth_result[i - 1].hmm_stats.stats == 1 || smooth_result[i - 1].hmm_stats.stats == 2))
 								|| ((ite->hmm_stats.stats == 4 || ite->hmm_stats.stats == 5)
-									&& smooth_result[i - 1].hmm_stats.stats == 4 || smooth_result[i - 1].hmm_stats.stats == 5);
+									&& (smooth_result[i - 1].hmm_stats.stats == 4 || smooth_result[i - 1].hmm_stats.stats == 5));
 				if (!consistant_type) { // Different stats
 					break;
 				} else {
@@ -244,7 +244,7 @@ bool HmmAndViterbi (std::vector<SHmmStats> & cnvs, const std::string & ref_name,
 	// End of Init HMM
 	
 #ifdef DEBUG
-PrintHmm(hmm, T, O);
+//PrintHmm(hmm, T, O);
 #endif
 	
 	ViterbiLog(&hmm, T, O, delta, psi, q, &logproba);
