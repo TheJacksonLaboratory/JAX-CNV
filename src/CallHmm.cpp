@@ -157,12 +157,32 @@ void SmoothStats(std::vector<SHmmStats> & cnvs, const std::string & ref_name,
 #endif
 
 	std::vector <SHmmStatsHeap> smooth_result;
-	unsigned int vector_id = 0;
+	unsigned int vector_id = 0, out_stats_length = 0, out_stats_count = 0;
 	SHmmStatsHeap tmp_heap(result.front(), vector_id);
 	smooth_result.push_back(tmp_heap);
 	for (std::vector <SHmmStats>::const_iterator ite = std::next(result.begin()); ite != result.end(); ++ite) {
 		if (ite->length < 5000 || ite->stats == smooth_result.back().hmm_stats.stats) {
 			smooth_result.back().hmm_stats.length += ite->length;
+			if (ite->stats != smooth_result.back().hmm_stats.stats) {
+				out_stats_length += ite->length;
+				++out_stats_count;
+			} else {
+				out_stats_length = 0;
+				out_stats_count = 0;
+			}
+			if (out_stats_length / static_cast<double>(smooth_result.back().hmm_stats.length) > 0.05) {
+				ite = std::prev(ite, out_stats_count - 1);
+				smooth_result.back().hmm_stats.length -= out_stats_length;
+				out_stats_length = 0;
+				out_stats_count = 0;
+
+				if (out_stats_count > 1) {
+					tmp_heap.hmm_stats = *ite;
+					tmp_heap.id = ++vector_id;
+					smooth_result.push_back(tmp_heap);
+				}
+				
+			}
 		} else {
 			tmp_heap.hmm_stats = *ite;
 			tmp_heap.id = ++vector_id;
