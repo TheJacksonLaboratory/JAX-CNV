@@ -163,12 +163,14 @@ void SmoothStats(std::vector<SHmmStats> & cnvs, const std::string & ref_name,
 	for (std::vector <SHmmStats>::const_iterator ite = std::next(result.begin()); ite != result.end(); ++ite) {
 		if (ite->length < 5000 || ite->stats == smooth_result.back().hmm_stats.stats) {
 			smooth_result.back().hmm_stats.length += ite->length;
-			if (ite->stats != smooth_result.back().hmm_stats.stats) {
-				out_stats_length += ite->length;
-				++out_stats_count;
-			} else {
+			if ((smooth_result.back().hmm_stats.stats == 3) // We prefer no varaint.
+				|| (ite->stats == smooth_result.back().hmm_stats.stats && ite->length / static_cast<double>(out_stats_length) > 0.3)) {
 				out_stats_length = 0;
 				out_stats_count = 0;
+			} else {
+				//std::cerr << ite->pos << "\t" << ite->stats << "\t" << smooth_result.back().hmm_stats.stats << "\t" << ite->length << "\t" << out_stats_length << "\t" << ite->length / static_cast<double>(out_stats_length) << std::endl;
+				out_stats_length += ite->length;
+				++out_stats_count;
 			}
 			if (out_stats_length / static_cast<double>(smooth_result.back().hmm_stats.length) > 0.05) {
 				ite = std::prev(ite, out_stats_count - 1);
@@ -187,6 +189,8 @@ void SmoothStats(std::vector<SHmmStats> & cnvs, const std::string & ref_name,
 			tmp_heap.hmm_stats = *ite;
 			tmp_heap.id = ++vector_id;
 			smooth_result.push_back(tmp_heap);
+			out_stats_length = 0;
+			out_stats_count = 0;
 		}
 	}
 

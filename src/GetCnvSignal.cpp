@@ -283,6 +283,7 @@ void FilterCnvs(std::vector<SHmmStats> & cnvs, const std::string kmer_table, con
 	std::vector<SHmmStats>::iterator ite = cnvs.begin();
 	//for (std::list<SHmmStats>::const_iterator ite = cnvs.begin(); ite != cnvs.end(); ++ite) {
 	while (ite != cnvs.end()) {
+		std::cerr << "Filter checking for " << ite->chr << "\t" << ite->pos << "\t" << ite->length << std::endl;
 		if (chr_name != ite->chr) {
 			load_kmer = Fastaq::FastaLoad(kmer_seq, kmer_table.c_str(), false, ite->chr.c_str());
 			if (!load_kmer)
