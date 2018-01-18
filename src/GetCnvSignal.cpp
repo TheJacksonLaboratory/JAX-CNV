@@ -344,6 +344,80 @@ void FilterCnvs(std::vector<SHmmStats> & cnvs, const std::string kmer_table, con
 	}
 }
 
+void ParseTargetRegion(const std::string & cmd_region, const std::string & bamfile, std::list<Fastaq::SRegion> & regions) {
+	if (!cmd_region.empty()) { // Parse region from the command line.
+		Fastaq::SRegion tmp_region;
+		if (!tmp_region.Parse(cmd_region)) {
+			std::cerr << "ERROR: The given region is not valid." << std::endl;
+			return;
+		}
+		// Only chromosome name is given.
+		// Need to find the length of the chromosome.
+		if (tmp_region.begin == 0 && tmp_region.end == 0) {
+			// Load bam header
+			samFile * bam_reader = sam_open(bamfile.c_str(), "r");
+			bam_hdr_t *header;
+			header = sam_hdr_read(bam_reader);
+			for (int32_t i = 0; i < header->n_targets; ++i) {
+				if (tmp_region.chr.compare(header->target_name[i]) == 0) {
+					tmp_region.end = (header->target_len[i]) - 1;
+					break;
+				}
+			}
+		}
+		regions.push_back(tmp_region);
+	} else { // Parse regions from the bam header.
+		// Load bam header
+		samFile * bam_reader = sam_open(bamfile.c_str(), "r");
+		bam_hdr_t *header;
+		header = sam_hdr_read(bam_reader);
+		for (int32_t i = 0; i < header->n_targets; ++i) {
+			Fastaq::SRegion tmp_region;
+			tmp_region.chr = (header->target_name[i]);
+			tmp_region.begin = 0;
+			tmp_region.end = (header->target_len[i]) - 1;
+			regions.push_back(tmp_region);
+		}
+		bam_hdr_destroy(header);
+		sam_close(bam_reader);
+	}
+}
+
+// If some chromosomes in regions cannot be found in fasta or kmer_table, they will be removed.
+bool CheckChrExistence(std::list<Fastaq::SRegion> & regions, const std::string & fasta, const std::string & kmer_table) {
+	Fastaq::CReference fasta_header, kmer_table_header;
+	Fastaq::HeaderLoad(fasta_header, fasta.c_str());
+	Fastaq::HeaderLoad(kmer_table_header, kmer_table.c_str());
+
+	// Make sure the headers of fasta and kemr_table are identical.
+	if (fasta_header.GetReferenceCount() != kmer_table_header.GetReferenceCount()) {
+		std::cerr << "ERROR: The numbers of references in " << fasta << " and " << kmer_table << " do not match." << std::endl;
+		return false;
+	}
+	for (unsigned int i = 0; i < fasta_header.GetReferenceCount(); ++i) {
+		const char* chr_name = fasta_header.GetReferenceName(i);
+		if (kmer_table_header.GetReferenceId(chr_name) == -1) {
+			std::cerr << "ERROR: The reference " << chr_name << " in " << fasta << " cannot be found in " << kmer_table << "." << std::endl;
+			return false;
+		}
+	}
+
+	// Make sure the references in bam header are all in fasta header.
+	// If not, we remove them from the further analysis.
+	std::list<Fastaq::SRegion>::iterator ite = regions.begin();
+	while (ite != regions.end()) {
+		if (fasta_header.GetReferenceId(ite->chr.c_str()) == -1) {
+			std::cerr << "Warning: " << ite->chr << " is not in fasta so it won't be further processed." << std::endl;
+			regions.erase(ite);
+			if (ite != regions.end()) ++ite;
+		}
+		if (ite != regions.end()) ++ite;
+	}
+
+	return true;
+
+}
+
 } // namespace
 
 GetCnvSignal::GetCnvSignal(int argc, char** argv)
@@ -360,56 +434,8 @@ int GetCnvSignal::Run () const {
 	// Parse region.
 	// Parse region from the command line or parse regions from the bam header.
 	std::list<Fastaq::SRegion> regions;
-	if (!cmdline.region.empty()) { // Parse region from the command line.
-		Fastaq::SRegion tmp_region;
-		if (!tmp_region.Parse(cmdline.region)) {
-			std::cerr << "ERROR: The given region is not valid." << std::endl;
-			return 1;
-		}
-		// Only chromosome name is given.
-		// Need to find the length of the chromosome.
-		if (tmp_region.begin == 0 && tmp_region.end == 0) {
-			// Load bam header
-			samFile * bam_reader = sam_open(cmdline.bam.c_str(), "r");
-			bam_hdr_t *header;
-			header = sam_hdr_read(bam_reader);
-			for (int32_t i = 0; i < header->n_targets; ++i) {
-				if (tmp_region.chr.compare(header->target_name[i]) == 0) {
-					tmp_region.end = (header->target_len[i]) - 1;
-					break;
-				}
-			}
-		}
-		regions.push_back(tmp_region);
-	} else { // Parse regions from the bam header.
-		// Load bam header
-		samFile * bam_reader = sam_open(cmdline.bam.c_str(), "r");
-		bam_hdr_t *header;
-		header = sam_hdr_read(bam_reader);
-		for (int32_t i = 0; i < header->n_targets; ++i) {
-			Fastaq::SRegion tmp_region;
-			tmp_region.chr = (header->target_name[i]);
-			tmp_region.begin = 0;
-			tmp_region.end = (header->target_len[i]) - 1;
-			regions.push_back(tmp_region);
-		}
-		bam_hdr_destroy(header);
-		sam_close(bam_reader);
-	}
-
-	// Divide regions into 5M block if it is larger than 5M.
-	// HMM seems to get much faster performance for smaller regions.
-	/*
-	for (std::list<Fastaq::SRegion>::iterator ite = regions.begin(); ite != regions.end(); ++ite) {
-		if (ite->end - ite->begin + 1 > 50000000) {
-			Fastaq::SRegion tmp;
-			tmp = *ite;
-			ite->end = ite->begin + 50000000 - 1;
-			tmp.begin = ite->end + 1;
-			regions.insert(std::next(ite), tmp);
-		}
-	}
-	*/
+	ParseTargetRegion(cmdline.region, cmdline.bam, regions);
+	if (!CheckChrExistence(regions, cmdline.fasta, cmdline.kmer_table)) return 1;
 
 	// Check BAI
 	samFile * bam_reader = sam_open(cmdline.bam.c_str(), "r");

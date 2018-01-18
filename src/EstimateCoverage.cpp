@@ -37,6 +37,7 @@ void CalculateChrCoverage(std::vector<float> & coverages, std::string & chr_name
 	const std::string chr_name = char_chr_name;
 	std::string kmer_seq;
 	const bool load_kmer = LoadKmer(chr_name_prefix, kmer_seq, kmer_table, chr_name);
+
 	size_t pos = 0;
 
 	coverages.clear();
