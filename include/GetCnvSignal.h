@@ -25,7 +25,7 @@ struct SGetCnvSignalCml {
 	int bin = 50;		// --bin
 	std::string log;	// --log
 	float unique_kmer = 0.6;	// --unique_kmer
-	float kmer_score = 0.3;	// --kmer_score
+	float kmer_score = 0.4;	// --kmer_score
 	
 	// command line
 	std::string cmd;
@@ -49,8 +49,8 @@ struct SGetCnvSignalCml {
 		std::string("	--ascii				Report kmer count in ASCII: (log2(#) + 1) + 33.\n") +
 		std::string("	--bin <INT>			Report a result for each # bp. [50]\n") +
 		std::string("	--log <FILE>			Log output.\n" +
-		std::string("	--unique_kmer <FLOAT>		Require percentage of unique kmer to report a CNV. [0.4]\n") +
-		std::string("	--kmer_score <FLOAT>		Score for log2(kmer count) = 2 positions. [0.2]\n"));
+		std::string("	--unique_kmer <FLOAT>		Require percentage of unique kmer to report a CNV. [0.6]\n") +
+		std::string("	--kmer_score <FLOAT>		Score for log2(kmer count) = 2 positions. [0.4]\n"));
 	}
 
 	// Check the required arguments.

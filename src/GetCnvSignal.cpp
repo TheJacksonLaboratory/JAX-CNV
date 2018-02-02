@@ -338,7 +338,7 @@ void FilterCnvs(std::vector<SHmmStats> & cnvs, const std::string kmer_table, con
 				++ite;
 			} else { // too many non uniq blocks
 				cnvs.erase(ite);
-				if (ite != cnvs.end()) ++ite;
+				//if (ite != cnvs.end()) ++ite;
 			}
 		}
 	}

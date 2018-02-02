@@ -63,9 +63,10 @@ inline bool CheckMerge(SHmmStats & pilot, const SHmmStats & target) {
 	bool merged = false;
 	// There should not any overlap between two.
 	if ((pilot.pos + pilot.length <= target.pos) || (target.pos + target.length <= pilot.pos)) {
-		const bool pilot_is_left_hand = (pilot.pos + pilot.length < target.pos);
+		const bool pilot_is_left_hand = (pilot.pos + pilot.length - 1 < target.pos);
 		const unsigned int gap = pilot_is_left_hand ? target.pos - pilot.pos - pilot.length
 						: pilot.pos - target.pos - target.length;
+
 		// Merge
 		if ((gap / static_cast<float>(pilot.length)) < 0.1) {
 			merged = true;
@@ -86,17 +87,22 @@ void ConsolidateStats(std::vector <SHmmStatsHeap> & smooth_result, std::vector <
 	std::sort(heap.begin(), heap.end(), SortByLength);
 	for (std::vector <SHmmStatsHeap>::reverse_iterator ite = heap.rbegin(); ite != heap.rend(); ++ite) {
 		if (!smooth_result[ite->id].merged && ite->hmm_stats.stats != 3) {
+//std::cerr << "Merge host" << std::endl;
+//std::cerr << ite->hmm_stats.pos << "\t" << ite->hmm_stats.length << "\t" << ite->hmm_stats.stats << std::endl;
 			// Forward merging
 			for (unsigned int i = ite->id + 1; i < smooth_result.size(); ++i) {
 				if (smooth_result[i].merged) break;
 				if (smooth_result[i].hmm_stats.stats == 3) continue;
-				const bool consistant_type = ((ite->hmm_stats.stats == 1 || ite->hmm_stats.stats == 2) 
-									&& (smooth_result[i].hmm_stats.stats == 1 || smooth_result[i].hmm_stats.stats == 2))
-								|| ((ite->hmm_stats.stats == 4 || ite->hmm_stats.stats == 5)
-									&& (smooth_result[i].hmm_stats.stats == 4 || smooth_result[i].hmm_stats.stats == 5));
+				const bool consistant_type = ite->hmm_stats.stats == smooth_result[i].hmm_stats.stats;
+				//const bool consistant_type = ((ite->hmm_stats.stats == 1 || ite->hmm_stats.stats == 2) 
+				//					&& (smooth_result[i].hmm_stats.stats == 1 || smooth_result[i].hmm_stats.stats == 2))
+				//				|| ((ite->hmm_stats.stats == 4 || ite->hmm_stats.stats == 5)
+				//					&& (smooth_result[i].hmm_stats.stats == 4 || smooth_result[i].hmm_stats.stats == 5));
 				if (!consistant_type) { // Different stats
 					break;
 				} else {
+//std::cerr << "\tMerge cell F" << std::endl;
+//std::cerr << "\t" << smooth_result[i].hmm_stats.pos << "\t" << smooth_result[i].hmm_stats.length << "\t" << smooth_result[i].hmm_stats.stats << std::endl;
 					if (CheckMerge(ite->hmm_stats, smooth_result[i].hmm_stats))
 						smooth_result[i].merged = true;
 					else 
@@ -107,13 +113,16 @@ void ConsolidateStats(std::vector <SHmmStatsHeap> & smooth_result, std::vector <
 			for (unsigned int i = ite->id; i > 0; --i) {
 				if (smooth_result[i - 1].merged) break;
 				if (smooth_result[i - 1].hmm_stats.stats == 3) continue;
-				const bool consistant_type = ((ite->hmm_stats.stats == 1 || ite->hmm_stats.stats == 2) 
-									&& (smooth_result[i - 1].hmm_stats.stats == 1 || smooth_result[i - 1].hmm_stats.stats == 2))
-								|| ((ite->hmm_stats.stats == 4 || ite->hmm_stats.stats == 5)
-									&& (smooth_result[i - 1].hmm_stats.stats == 4 || smooth_result[i - 1].hmm_stats.stats == 5));
+				const bool consistant_type = ite->hmm_stats.stats == smooth_result[i - 1].hmm_stats.stats;
+				//const bool consistant_type = ((ite->hmm_stats.stats == 1 || ite->hmm_stats.stats == 2) 
+				//					&& (smooth_result[i - 1].hmm_stats.stats == 1 || smooth_result[i - 1].hmm_stats.stats == 2))
+				//				|| ((ite->hmm_stats.stats == 4 || ite->hmm_stats.stats == 5)
+				//					&& (smooth_result[i - 1].hmm_stats.stats == 4 || smooth_result[i - 1].hmm_stats.stats == 5));
 				if (!consistant_type) { // Different stats
 					break;
 				} else {
+//std::cerr << "\tMerge cell B" << std::endl;
+//std::cerr << "\t" << smooth_result[i - 1].hmm_stats.pos << "\t" << smooth_result[i - 1].hmm_stats.length << "\t" << smooth_result[i - 1].hmm_stats.stats << std::endl;
 					if (CheckMerge(ite->hmm_stats, smooth_result[i - 1].hmm_stats))
 						smooth_result[i - 1].merged = true;
 					else 
