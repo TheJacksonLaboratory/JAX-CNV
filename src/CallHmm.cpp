@@ -87,8 +87,6 @@ void ConsolidateStats(std::vector <SHmmStatsHeap> & smooth_result, std::vector <
 	std::sort(heap.begin(), heap.end(), SortByLength);
 	for (std::vector <SHmmStatsHeap>::reverse_iterator ite = heap.rbegin(); ite != heap.rend(); ++ite) {
 		if (!smooth_result[ite->id].merged && ite->hmm_stats.stats != 3) {
-//std::cerr << "Merge host" << std::endl;
-//std::cerr << ite->hmm_stats.pos << "\t" << ite->hmm_stats.length << "\t" << ite->hmm_stats.stats << std::endl;
 			// Forward merging
 			for (unsigned int i = ite->id + 1; i < smooth_result.size(); ++i) {
 				if (smooth_result[i].merged) break;
@@ -101,8 +99,6 @@ void ConsolidateStats(std::vector <SHmmStatsHeap> & smooth_result, std::vector <
 				if (!consistant_type) { // Different stats
 					break;
 				} else {
-//std::cerr << "\tMerge cell F" << std::endl;
-//std::cerr << "\t" << smooth_result[i].hmm_stats.pos << "\t" << smooth_result[i].hmm_stats.length << "\t" << smooth_result[i].hmm_stats.stats << std::endl;
 					if (CheckMerge(ite->hmm_stats, smooth_result[i].hmm_stats))
 						smooth_result[i].merged = true;
 					else 
@@ -121,8 +117,6 @@ void ConsolidateStats(std::vector <SHmmStatsHeap> & smooth_result, std::vector <
 				if (!consistant_type) { // Different stats
 					break;
 				} else {
-//std::cerr << "\tMerge cell B" << std::endl;
-//std::cerr << "\t" << smooth_result[i - 1].hmm_stats.pos << "\t" << smooth_result[i - 1].hmm_stats.length << "\t" << smooth_result[i - 1].hmm_stats.stats << std::endl;
 					if (CheckMerge(ite->hmm_stats, smooth_result[i - 1].hmm_stats))
 						smooth_result[i - 1].merged = true;
 					else 
@@ -149,7 +143,9 @@ void SmoothStats(std::vector<SHmmStats> & cnvs, const std::string & ref_name,
 #ifdef DEBUG
 		std::cerr << rd_ite->pos << "\t" << rd_ite->n_count << "\t" << (((rd_ite->n_count * 2) > bin_size) ? 3 : q[i]) << std::endl;
 #endif
-		const int cur_stat = (rd_ite->n_count * 2) > bin_size ? 3 : q[i];
+		int cur_stat = (rd_ite->n_count * 2) > bin_size ? 3 : q[i];
+		// If there are >50% low qual alignments in the region, the region won't be taken in account so we set the stats to NORMAL.
+		cur_stat = rd_ite->low_mq_alignments > 0.5 ? 3 : cur_stat;
 		
 		if (result.empty() || cur_stat != result.back().stats) { // Create the init hmm_stats.
 			SHmmStats tmp(rd_ite->pos, cur_stat, 0);
@@ -166,24 +162,30 @@ void SmoothStats(std::vector<SHmmStats> & cnvs, const std::string & ref_name,
 #endif
 
 	std::vector <SHmmStatsHeap> smooth_result;
-	unsigned int vector_id = 0, out_stats_length = 0, out_stats_count = 0;
+	unsigned int vector_id = 0, out_stats_length = 0, total_out_stats_length = 0, out_stats_count = 0;
 	SHmmStatsHeap tmp_heap(result.front(), vector_id);
 	smooth_result.push_back(tmp_heap);
 	for (std::vector <SHmmStats>::const_iterator ite = std::next(result.begin()); ite != result.end(); ++ite) {
 		if (ite->length < 5000 || ite->stats == smooth_result.back().hmm_stats.stats) {
 			smooth_result.back().hmm_stats.length += ite->length;
-			if ((smooth_result.back().hmm_stats.stats == 3) // We prefer no varaint.
+			if ((smooth_result.back().hmm_stats.stats == 3)
+			// If the stats of smooth_result.back().hmm_stats.stats is 3, we absorb the new stats anyway.
 				|| (ite->stats == smooth_result.back().hmm_stats.stats && ite->length / static_cast<double>(out_stats_length) > 0.3)) {
+				// If the stats of smooth_result.back().hmm_stats.stats is NOT 3, we absorb when length of the current stats is larger than 30% of out_stats_length.
 				out_stats_length = 0;
 				out_stats_count = 0;
 			} else {
+				// Two stats are different.
 				//std::cerr << ite->pos << "\t" << ite->stats << "\t" << smooth_result.back().hmm_stats.stats << "\t" << ite->length << "\t" << out_stats_length << "\t" << ite->length / static_cast<double>(out_stats_length) << std::endl;
+				total_out_stats_length += ite->length;
 				out_stats_length += ite->length;
 				++out_stats_count;
 			}
-			if (out_stats_length / static_cast<double>(smooth_result.back().hmm_stats.length) > 0.05) {
+			// Too many total_out_stats_length so far, we stop extend smooth_result.back().
+			if (total_out_stats_length / static_cast<double>(smooth_result.back().hmm_stats.length) > 0.01) {
 				ite = std::prev(ite, out_stats_count - 1);
 				smooth_result.back().hmm_stats.length -= out_stats_length;
+				total_out_stats_length = 0;
 				out_stats_length = 0;
 				out_stats_count = 0;
 
@@ -194,10 +196,12 @@ void SmoothStats(std::vector<SHmmStats> & cnvs, const std::string & ref_name,
 				}
 				
 			}
-		} else {
+		} else { // !(ite->length < 5000 || ite->stats == smooth_result.back().hmm_stats.stats)
+			// A new stats is created.
 			tmp_heap.hmm_stats = *ite;
 			tmp_heap.id = ++vector_id;
 			smooth_result.push_back(tmp_heap);
+			total_out_stats_length = 0;
 			out_stats_length = 0;
 			out_stats_count = 0;
 		}

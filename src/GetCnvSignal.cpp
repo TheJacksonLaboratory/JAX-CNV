@@ -33,6 +33,7 @@ struct SBamData {
 	unsigned int proper_pairs = 0;
 	unsigned int inproper_pairs = 0;
 	unsigned int mate_unmapped = 0;
+	unsigned int low_mq_alignments = 0;
 	std::vector<unsigned int> isizes;
 	std::vector<unsigned int> softclips;
 	std::vector<unsigned int> mismatches;
@@ -44,6 +45,7 @@ struct SBamData {
 		proper_pairs = 0;
 		inproper_pairs = 0;
 		mate_unmapped = 0;
+		low_mq_alignments = 0;
 		isizes.clear();
 		softclips.clear();
 		mismatches.clear();
@@ -102,6 +104,7 @@ void PrintCleanBamData (SBamData & bam_data, std::vector <SReadDepth> & hmm_rd, 
 		bam_signal_out << (pos_count == 0 ? 0 : sum / static_cast<double>(pos_count)) << "\t";
 
 	SReadDepth rd_tmp(cur_pos, round(sum / static_cast<double>(pos_count)));
+	rd_tmp.low_mq_alignments = bam_data.low_mq_alignments / static_cast<double>(bam_data.total_read);
 	hmm_rd.push_back(rd_tmp);
 
 	// Clean
@@ -111,6 +114,7 @@ void PrintCleanBamData (SBamData & bam_data, std::vector <SReadDepth> & hmm_rd, 
 	bam_data.proper_pairs = 0;
 	bam_data.inproper_pairs = 0;
 	bam_data.mate_unmapped = 0;
+	bam_data.low_mq_alignments = 0;
 	bam_data.isizes.clear();
 	bam_data.softclips.clear();
 	bam_data.mismatches.clear();
@@ -146,7 +150,7 @@ inline std::vector<SReadDepth>::iterator GetRdListIte (std::vector<SReadDepth> &
 // Func: Extract flag and read depth information and collect them in bam_data.
 // @bam_data: The info of the alignment will be kept in this data.
 // @aln: hts_lib bam alignment.
-void ProcessAlignment (SBamData & bam_data, const bam1_t * aln) {
+void ProcessAlignment (SBamData & bam_data, const bam1_t * aln, const uint8_t aln_qual_filter) {
 	// The alignment is not mapped.
 	if (aln->core.flag & BAM_FUNMAP || aln->core.flag & BAM_FSECONDARY || aln->core.flag & BAM_FQCFAIL 
 		|| aln->core.flag & BAM_FDUP || aln->core.flag & BAM_FSUPPLEMENTARY) 
@@ -162,6 +166,8 @@ void ProcessAlignment (SBamData & bam_data, const bam1_t * aln) {
 	// If it is, isize will be collected.
 	if (aln->core.flag & BAM_FMUNMAP) ++bam_data.mate_unmapped;
 	else bam_data.isizes.push_back(aln->core.isize < 0 ? -aln->core.isize : aln->core.isize);
+	// MQ
+	if (aln->core.qual < aln_qual_filter) ++bam_data.low_mq_alignments;
 	// Softclip
 	const uint32_t* pCigar = bam_get_cigar(aln);
 	uint32_t sc = 0;
@@ -207,7 +213,7 @@ void ProcessAlignment (SBamData & bam_data, const bam1_t * aln) {
 // @ref: We can access bases of the entire chromosome from ref.
 void ProcessBam (std::vector <SReadDepth> & hmm_rd, std::stringstream & bam_signal_out, const bool output_bam_signal, 
 			const char * bam_filename, const Fastaq::SRegion & region,
-			const int & bin, const std::string & ref, const std::string & kmer_seq) {
+			const int & bin, const std::string & ref, const std::string & kmer_seq, const uint8_t aln_qual_filter) {
 	samFile * bam_reader = sam_open(bam_filename, "r");
 
 	bam_hdr_t *header;
@@ -235,6 +241,7 @@ void ProcessBam (std::vector <SReadDepth> & hmm_rd, std::stringstream & bam_sign
 					// Calculate the number of N's in this region.
 					hmm_rd.back().n_count = 0;
 					//TODO: The for loop seems slow.
+					//If the count of N's is too high for the bin, the HMM stats of the bin will be set to 3 which is normal.
 					for (std::string::const_iterator s_ite = std::next(ref.begin(), i * bin); 
 						s_ite != ref.end() && s_ite != std::next(ref.begin(), (i + 1) * bin - 1); ++s_ite) {
 						if (*s_ite == 'N') 
@@ -253,7 +260,7 @@ void ProcessBam (std::vector <SReadDepth> & hmm_rd, std::stringstream & bam_sign
 				}
 				pre_bin = cur_bin;
 			}
-			ProcessAlignment(bam_data, aln);
+			ProcessAlignment(bam_data, aln, aln_qual_filter);
 		}
 
 		// Clean up
@@ -293,6 +300,7 @@ void FilterCnvs(std::vector<SHmmStats> & cnvs, const std::string kmer_table, con
 		}
 		if (load_kmer) {
 			const unsigned int kmer_bin = 10;
+			const unsigned int kmer_bin_length = ite->length / kmer_bin;
 			std::vector<float> uniq_kmers(kmer_bin, 0);
 			for (unsigned int i = 0; i < kmer_bin; ++i) {
 				for (unsigned int j = ite->pos + (i * ite->length / kmer_bin);
@@ -311,8 +319,8 @@ void FilterCnvs(std::vector<SHmmStats> & cnvs, const std::string kmer_table, con
 			int leading_remove = 0;
 			for (std::vector<float>::const_iterator kmer_ite = uniq_kmers.begin(); kmer_ite != uniq_kmers.end(); ++kmer_ite) {
 				if (*kmer_ite < unique_kmer) {
-					ite->pos += (ite->length / kmer_bin);
-					ite->length -= std::min(ite->length, (ite->length / kmer_bin));
+					ite->pos += kmer_bin_length;
+					ite->length -= kmer_bin_length;
 					++leading_remove;
 				} else {
 					break;
@@ -322,7 +330,7 @@ void FilterCnvs(std::vector<SHmmStats> & cnvs, const std::string kmer_table, con
 			int tailing_remove = 0;
 			for (std::vector<float>::const_reverse_iterator kmer_ite = uniq_kmers.rbegin(); kmer_ite != uniq_kmers.rend(); ++kmer_ite) {
 				if (*kmer_ite < unique_kmer) {
-					ite->length -= std::min(ite->length, (ite->length / kmer_bin));
+					ite->length -= kmer_bin_length;
 					++tailing_remove;
 				} else {
 					break;
@@ -334,11 +342,14 @@ void FilterCnvs(std::vector<SHmmStats> & cnvs, const std::string kmer_table, con
 				if (*kmer_ite > unique_kmer) ++uniq_kmer_count;
 
 			std::cerr << uniq_kmer_count << "\t" << leading_remove << "\t" << tailing_remove << "\t" << uniq_kmer_count / static_cast<float>(kmer_bin - leading_remove - tailing_remove) << std::endl;
-			if (uniq_kmer_count / static_cast<float>(kmer_bin - leading_remove - tailing_remove) > 0.7) { // the entire region pass the filter
+			// Somehow >= 0.7 doesn't work.
+			if ((uniq_kmer_count / static_cast<float>(kmer_bin - leading_remove - tailing_remove)) > 0.69) { // the entire region pass the filter
 				++ite;
+std::cerr << "Keep" << std::endl;
 			} else { // too many non uniq blocks
 				cnvs.erase(ite);
 				//if (ite != cnvs.end()) ++ite;
+std::cerr << "Filter" << std::endl;
 			}
 		}
 	}
@@ -480,7 +491,7 @@ int GetCnvSignal::Run () const {
 		}
 		
 		std::vector <SReadDepth> hmm_rd; // The list to collect read depth info for HMM.
-		ProcessBam(hmm_rd, bam_signal_out, !cmdline.log.empty(), cmdline.bam.c_str(), *ite, cmdline.bin, ref_seq, kmer_seq);
+		ProcessBam(hmm_rd, bam_signal_out, !cmdline.log.empty(), cmdline.bam.c_str(), *ite, cmdline.bin, ref_seq, kmer_seq, cmdline.aln_qual);
 		// Perform HMM	
 		CallHmm::HmmAndViterbi(cnvs, ref_name, hmm_rd, cmdline.bin, coverage);
 	}

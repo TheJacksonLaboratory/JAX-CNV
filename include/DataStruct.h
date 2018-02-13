@@ -7,6 +7,7 @@ struct SReadDepth {
 	int pos = 0;
 	unsigned int count = 0;
 	unsigned int n_count = 0; // how many N's in a region of reference genome.
+	double low_mq_alignments = 0.0; // the % of low mapping quality alignments in the region.
 };
 
 struct SHmmStats {

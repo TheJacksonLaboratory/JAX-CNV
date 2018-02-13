@@ -21,11 +21,11 @@ struct SGetCnvSignalCml {
 	// operation parameters
 	int coverage = 0;	// -c --coverage
 	std::string region;     // -r --region
-	bool ascii = false;	// --ascii
+	uint8_t aln_qual = 40;	// -q --aln_qual
 	int bin = 50;		// --bin
 	std::string log;	// --log
 	float unique_kmer = 0.6;	// --unique_kmer
-	float kmer_score = 0.4;	// --kmer_score
+	float kmer_score = 0.1;	// --kmer_score
 	
 	// command line
 	std::string cmd;
@@ -44,13 +44,13 @@ struct SGetCnvSignalCml {
 		std::string("	-o --output <FILE>		Output file.\n") +
 		std::string("\n") +
 		std::string("Operations:\n") +
-		std::string("	-c --coverage <INT>		Specify the coverage.\n") +
-		std::string("	-r --region chr:begin-end	Specify a target region.\n") +
-		std::string("	--ascii				Report kmer count in ASCII: (log2(#) + 1) + 33.\n") +
+		std::string("	-c --coverage <INT>		The expected coverage.\n") +
+		std::string("	-r --region chr:begin-end	A target region.\n") +
+		std::string("	-q --aln_qual			A mapping quality filter for alignments. [40]\n") +
 		std::string("	--bin <INT>			Report a result for each # bp. [50]\n") +
 		std::string("	--log <FILE>			Log output.\n" +
 		std::string("	--unique_kmer <FLOAT>		Require percentage of unique kmer to report a CNV. [0.6]\n") +
-		std::string("	--kmer_score <FLOAT>		Score for log2(kmer count) = 2 positions. [0.4]\n"));
+		std::string("	--kmer_score <FLOAT>		Score for log2(kmer count) = 2 positions. [0.1]\n"));
 	}
 
 	// Check the required arguments.
@@ -110,7 +110,7 @@ struct SGetCnvSignalCml {
 			// operation parameters
 			{"coverage", required_argument, NULL, 'c'},
 			{"region", required_argument, NULL, 'r'},
-			{"ascii", no_argument, NULL, 1},
+			{"aln_qual", required_argument, NULL, 'q'},
 			{"bin", required_argument, NULL, 2},
 			{"log", required_argument, NULL, 3},
 			{"unique_kmer", required_argument, NULL, 4},
@@ -128,7 +128,7 @@ struct SGetCnvSignalCml {
 				case 'o': output = optarg; break;
 				case 'c': coverage = atoi(optarg); break;
 				case 'r': region = optarg; break;
-				case 1: ascii = true; break;
+				case 'q': aln_qual = atoi(optarg); break;
 				case 2: bin = atoi(optarg); break;
 				case 3: log = optarg; break;
 				case 4: unique_kmer = atof(optarg); break;
