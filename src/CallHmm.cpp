@@ -170,6 +170,7 @@ void SmoothStats(std::vector<SHmmStats> & cnvs, const std::string & ref_name,
 			smooth_result.back().hmm_stats.length += ite->length;
 			if ((smooth_result.back().hmm_stats.stats == 3)
 			// If the stats of smooth_result.back().hmm_stats.stats is 3, we absorb the new stats anyway.
+			// We prefer normal stage.
 				|| (ite->stats == smooth_result.back().hmm_stats.stats && ite->length / static_cast<double>(out_stats_length) > 0.3)) {
 				// If the stats of smooth_result.back().hmm_stats.stats is NOT 3, we absorb when length of the current stats is larger than 30% of out_stats_length.
 				out_stats_length = 0;
@@ -182,19 +183,17 @@ void SmoothStats(std::vector<SHmmStats> & cnvs, const std::string & ref_name,
 				++out_stats_count;
 			}
 			// Too many total_out_stats_length so far, we stop extend smooth_result.back().
-			if (total_out_stats_length / static_cast<double>(smooth_result.back().hmm_stats.length) > 0.01) {
-				ite = std::prev(ite, out_stats_count - 1);
+			if (total_out_stats_length / static_cast<double>(smooth_result.back().hmm_stats.length) > 0.2) {
 				smooth_result.back().hmm_stats.length -= out_stats_length;
+
+				ite = std::prev(ite, out_stats_count - 1);
+				tmp_heap.hmm_stats = *ite;
+				tmp_heap.id = ++vector_id;
+				smooth_result.push_back(tmp_heap);
+				
 				total_out_stats_length = 0;
 				out_stats_length = 0;
 				out_stats_count = 0;
-
-				if (out_stats_count > 1) {
-					tmp_heap.hmm_stats = *ite;
-					tmp_heap.id = ++vector_id;
-					smooth_result.push_back(tmp_heap);
-				}
-				
 			}
 		} else { // !(ite->length < 5000 || ite->stats == smooth_result.back().hmm_stats.stats)
 			// A new stats is created.

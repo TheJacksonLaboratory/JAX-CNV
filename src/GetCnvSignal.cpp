@@ -70,12 +70,13 @@ void PrintCleanBamData (SBamData & bam_data, std::vector <SReadDepth> & hmm_rd, 
 		bam_signal_out << cur_pos << "\t";
 
 		if (bam_data.total_read == 0) {
-			bam_signal_out << "0\t0\t0\t0\t0\t0\t0\t";
+			bam_signal_out << "0\t0\t0\t0\t0\t0\t0\t0\t";
 		} else {
 			bam_signal_out << bam_data.total_read << "\t" << bam_data.paired_reads << "\t" // total reads and total paired-end reads
 				<< bam_data.proper_pairs << "\t" // proper pairs
 				<< bam_data.inproper_pairs << "\t" // inproper pairs
-				<< bam_data.mate_unmapped << "\t"; // mate unmapped
+				<< bam_data.mate_unmapped << "\t" // mate unmapped
+				<< bam_data.low_mq_alignments / static_cast<double>(bam_data.total_read) << "\t"; // ratio of low mq alignments
 	
 			// Isize
 			uint64_t sum = 0;
@@ -276,7 +277,7 @@ void ProcessBam (std::vector <SReadDepth> & hmm_rd, std::stringstream & bam_sign
 
 void PrintResults(std::ofstream & log, std::stringstream & bam_signal_out) {
 	const bool have_count_kmer_out = false;
-	log << "#POS\tREADS\tPAIRED\tPROPER_PAIRS\tINPROPER_PAIRS\tMATE_UNMAPPED\tISIZE\tSOFTCLIPS\tREAD_DEPTH\tKMER_COUNT\n";
+	log << "#POS\tREADS\tPAIRED\tPROPER_PAIRS\tINPROPER_PAIRS\tMATE_UNMAPPED\tLOW_MQ_RATIO\tISIZE\tSOFTCLIPS\tREAD_DEPTH\tKMER_COUNT\n";
 	while (!bam_signal_out.eof()) { // The bam_signal_out is the major player here.
 		std::string tmp;
 		if (std::getline(bam_signal_out, tmp).eof()) break;
