@@ -2,6 +2,7 @@
 #include <iostream>
 #include <vector>
 #include <cmath>
+#include <algorithm>
 // htslib include
 #include "htslib/sam.h"
 #include "fastaq/fasta.h"
@@ -74,6 +75,33 @@ void CalculateChrCoverage(std::vector<float> & coverages, std::string & chr_name
 		}
 	}
 }
+
+bool CoverageSort(const std::pair<int, float> & t1, const std::pair<int, float> & t2) {
+	return t1.second < t2.second;
+}
+
+void InterquartileRangeTest(const std::vector<float> & coverages, unsigned int begin_chr_id, unsigned int end_chr_id) {
+	if (end_chr_id > coverages.size() - 1) end_chr_id = coverages.size() - 1;
+	if (begin_chr_id > end_chr_id) return; // Invalid ids.
+	if (end_chr_id - begin_chr_id < 3) return; // Not enough element for IQR calculation.
+
+	std::vector<std::pair<int, float> > covs; // id and coverages
+	for (unsigned int i = begin_chr_id; i <= end_chr_id; ++i) {
+		covs.push_back(std::pair<int, float>(begin_chr_id + i, coverages[i]));
+	}
+	std::sort(covs.begin(), covs.end(), CoverageSort);
+
+	const unsigned int Q2_id = (end_chr_id - begin_chr_id + 1) / 2;
+	const unsigned int Q1_id = (end_chr_id - begin_chr_id + 1) / 4;
+	const unsigned int Q3_id = Q2_id + (Q1_id == 0 ? 1 : Q1_id);
+	const float IQR = covs[Q3_id].second - covs[Q1_id].second;
+	std::cout << "IQR: " << IQR << "\t" << "Q1: " << Q1_id << "\t" << covs[Q1_id].second - IQR << "\tQ3: " << Q3_id << "\t" << covs[Q3_id].second + IQR << std::endl;
+	for (std::vector<std::pair<int, float> >::const_iterator ite = covs.begin(); ite != covs.end(); ++ite)
+		std::cout << "chr:" << ite->first << "\t" << ite->second << std::endl;
+
+	exit(1);
+//Aneuploidy 	
+}
 }
 
 namespace EstimateCoverage {
@@ -117,10 +145,12 @@ int EstimateCoverage(std::vector<float> & coverages, const char * bam_filename, 
 		std::cerr << Human::HumanAllosome[i] << "\t" << coverages[i + Human::HumanAutosomeSize] << std::endl;
 	}
 
-	float all_chr_cov = 0;
+	float all_chr_cov = 0.0;
 	for (int i  = 0; i < Human::HumanAutosomeSize; ++i) {
 		all_chr_cov += coverages[i];
 	}
+
+	InterquartileRangeTest(coverages, 0, Human::HumanAutosomeSize - 1);
 
 	// Clean up
 	bam_hdr_destroy(header);
