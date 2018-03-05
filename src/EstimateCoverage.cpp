@@ -80,7 +80,9 @@ bool CoverageSort(const std::pair<int, float> & t1, const std::pair<int, float> 
 	return t1.second < t2.second;
 }
 
-void InterquartileRangeTest(const std::vector<float> & coverages, unsigned int begin_chr_id, unsigned int end_chr_id) {
+void CalculateCoverage(int & all_chr_cov, std::vector<unsigned int> & aneuploidies, 
+	const std::vector<float> & coverages, unsigned int begin_chr_id, unsigned int end_chr_id) {
+
 	if (end_chr_id > coverages.size() - 1) end_chr_id = coverages.size() - 1;
 	if (begin_chr_id > end_chr_id) return; // Invalid ids.
 	if (end_chr_id - begin_chr_id < 3) return; // Not enough element for IQR calculation.
@@ -95,12 +97,26 @@ void InterquartileRangeTest(const std::vector<float> & coverages, unsigned int b
 	const unsigned int Q1_id = (end_chr_id - begin_chr_id + 1) / 4;
 	const unsigned int Q3_id = Q2_id + (Q1_id == 0 ? 1 : Q1_id);
 	const float IQR = covs[Q3_id].second - covs[Q1_id].second;
-	std::cout << "IQR: " << IQR << "\t" << "Q1: " << Q1_id << "\t" << covs[Q1_id].second - IQR << "\tQ3: " << Q3_id << "\t" << covs[Q3_id].second + IQR << std::endl;
-	for (std::vector<std::pair<int, float> >::const_iterator ite = covs.begin(); ite != covs.end(); ++ite)
-		std::cout << "chr:" << ite->first << "\t" << ite->second << std::endl;
 
-	exit(1);
-//Aneuploidy 	
+	// Based on IQR, we caluculate coverage.
+	float total_coverage = 0.0;
+	int total_coverage_count = 0;
+	for (std::vector<std::pair<int, float> >::const_iterator ite = covs.begin(); ite != covs.end(); ++ite) {
+		//std::cout << "chr:" << ite->first << "\t" << ite->second << std::endl;
+		if (ite->second > covs[Q1_id].second && ite->second < covs[Q3_id].second) {
+			total_coverage += ite->second;
+			++total_coverage_count;
+		}
+	}
+	all_chr_cov = std::round(total_coverage / static_cast<float>(total_coverage_count));
+
+	// Based on the coverage, we detect aneuploidies
+	aneuploidies.clear();
+	for (std::vector<std::pair<int, float> >::const_iterator ite = covs.begin(); ite != covs.end(); ++ite) {
+		if (ite->second < (all_chr_cov * 0.6) || ite->second > (all_chr_cov * 1.4)) 
+			aneuploidies.push_back(ite->first);
+	}
+	std::sort(aneuploidies.begin(), aneuploidies.end());
 }
 }
 
@@ -127,7 +143,7 @@ int EstimateCoverage(std::vector<float> & coverages, const char * bam_filename, 
 		for (std::vector<float>::const_iterator cov_ite = chr_cov.begin(); cov_ite != chr_cov.end(); ++cov_ite) 
 			cov_chr_total += *cov_ite;
 		coverages[i] = cov_chr_total / static_cast<float>(chr_cov.size());
-		std::cerr << Human::HumanAutosome[i] << "\t" << coverages[i] << std::endl;
+		//std::cerr << Human::HumanAutosome[i] << "\t" << coverages[i] << std::endl;
 	}
 
 	for (int i  = 0; i < Human::HumanAllosomeSize; ++i) {
@@ -142,20 +158,23 @@ int EstimateCoverage(std::vector<float> & coverages, const char * bam_filename, 
 		for (std::vector<float>::const_iterator cov_ite = chr_cov.begin(); cov_ite != chr_cov.end(); ++cov_ite) 
 			cov_chr_total += *cov_ite;
 		coverages[i + Human::HumanAutosomeSize] = cov_chr_total / static_cast<float>(chr_cov.size());
-		std::cerr << Human::HumanAllosome[i] << "\t" << coverages[i + Human::HumanAutosomeSize] << std::endl;
+		//std::cerr << Human::HumanAllosome[i] << "\t" << coverages[i + Human::HumanAutosomeSize] << std::endl;
 	}
 
-	float all_chr_cov = 0.0;
-	for (int i  = 0; i < Human::HumanAutosomeSize; ++i) {
-		all_chr_cov += coverages[i];
-	}
-
-	InterquartileRangeTest(coverages, 0, Human::HumanAutosomeSize - 1);
+	int all_chr_cov = 0;
+	std::vector<unsigned int> aneuploidies;
+	// Calculate IQR and then coverage as well as detect aneuploidies.
+	CalculateCoverage(all_chr_cov, aneuploidies, coverages, 0, Human::HumanAutosomeSize - 1);
+	if (aneuploidies.size() > 0) std::cerr << "Aneuploidies:";
+	for (std::vector<unsigned int>::const_iterator ite = aneuploidies.begin(); ite != aneuploidies.end(); ++ite)
+		std::cerr << "\t" << Human::HumanAutosome[*ite]; 
+	if (aneuploidies.size() > 0) std::cerr << std::endl;
 
 	// Clean up
 	bam_hdr_destroy(header);
 	sam_close(bam_reader);
 
-	return std::round(all_chr_cov / static_cast<float>(Human::HumanAutosomeSize));
+	//return std::round(all_chr_cov / static_cast<float>(Human::HumanAutosomeSize));
+	return all_chr_cov;
 }
 } //namespace EstimateCoverage
