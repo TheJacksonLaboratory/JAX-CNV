@@ -507,7 +507,13 @@ int GetCnvSignal::Run () const {
 	std::cerr << "Message: After filtering." << std::endl;
 	for (std::vector<SHmmStats>::const_iterator ite = cnvs.begin(); ite != cnvs.end(); ++ite) {
 		if (ite->length > 45000)
-			std::cout << ite->stats << "\t" << ite->chr << "\t" << ite->pos << "\t" << ite->pos + ite->length - 1 << "\t" << ite->length << std::endl;
+			std::cout << ite->chr << "\t" << ite->pos << "\t" << ite->pos + ite->length << "\t" << std::endl;
+			switch(ite->stats) {
+				case 1: std::cout << "DEL\tCN=0" << std::endl; break;
+				case 2: std::cout << "DEL\tCN=1" << std::endl; break;
+				case 4: std::cout << "DUP\tCN=3" << std::endl; break;
+				case 5: std::cout << "DEL\tCN>3" << std::endl; break;
+			}
 	}
 
 	// Open a file for outputing log
