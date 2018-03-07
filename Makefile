@@ -48,10 +48,10 @@ $(PROGRAM): fastaq umdhmm $(JELLYFISH) $(HTS_LIB) $(SOURCES)
 .PHONY: all
 
 clean:
-	$(MAKE) clean -C $(LIB)/fastaq
-	$(MAKE) clean -C $(LIB)/umdhmm-v1.02
-	@rm -rf $(LIB)/jellyfish-2.2.6
 	@rm -rf $(OBJ_DIR) $(BIN_DIR)
+	$(MAKE) clean -C $(LIB)/fastaq
+	@rm -rf $(LIB)/jellyfish-2.2.6
+	$(MAKE) clean -C $(LIB)/umdhmm-v1.02
 .PHONY: clean
 
 
