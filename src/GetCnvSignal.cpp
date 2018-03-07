@@ -504,16 +504,28 @@ int GetCnvSignal::Run () const {
 
 	FilterCnvs(cnvs, cmdline.kmer_table, cmdline.unique_kmer, cmdline.kmer_score);
 
-	std::cerr << "Message: After filtering." << std::endl;
+	std::ofstream output;
+	bool use_output_file = !cmdline.output.empty();
+	if (use_output_file) {
+		output.open(cmdline.output, std::ofstream::out);
+		if (!output.good()) {
+			std::cerr << "ERROR: Cannot open " << cmdline.output << ". The result will be shown in stdout instead." << std::endl;
+			use_output_file = false;
+		}
+	}
 	for (std::vector<SHmmStats>::const_iterator ite = cnvs.begin(); ite != cnvs.end(); ++ite) {
-		if (ite->length > 45000)
-			std::cout << ite->chr << "\t" << ite->pos << "\t" << ite->pos + ite->length << "\t" << std::endl;
+		if (ite->length > 45000) {
+			std::string tmp;
+			tmp = ite->chr + "\t" + std::to_string(ite->pos) + "\t" + std::to_string(ite->pos + ite->length) + "\t";
 			switch(ite->stats) {
-				case 1: std::cout << "DEL\tCN=0" << std::endl; break;
-				case 2: std::cout << "DEL\tCN=1" << std::endl; break;
-				case 4: std::cout << "DUP\tCN=3" << std::endl; break;
-				case 5: std::cout << "DEL\tCN>3" << std::endl; break;
+				case 1: tmp += "DEL\tCN=1\n"; break;
+				case 2: tmp += "DEL\tCN=1\n"; break;
+				case 4: tmp += "DUP\tCN=3\n"; break;
+				case 5: tmp += "DEL\tCN>3\n"; break;
 			}
+			if (use_output_file) output << tmp;
+			else std::cout << tmp;
+		}
 	}
 
 	// Open a file for outputing log
