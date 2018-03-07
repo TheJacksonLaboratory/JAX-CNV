@@ -11,10 +11,11 @@
 namespace {
 bool LoadKmer(std::string & chr_name_prefix, std::string & kmer_seq, const char * kmer_table, const std::string & chr_name) {
 	bool load_chr = false;
+	const bool quiet = true;
 	if (chr_name_prefix.empty()) {
-		if (Fastaq::FastaLoad(kmer_seq, kmer_table, false, chr_name.c_str())) {
+		if (Fastaq::FastaLoad(kmer_seq, kmer_table, false, chr_name.c_str(), quiet)) {
 			load_chr = true;
-		} else if (Fastaq::FastaLoad(kmer_seq, kmer_table, false, ("chr" + chr_name).c_str())) {
+		} else if (Fastaq::FastaLoad(kmer_seq, kmer_table, false, ("chr" + chr_name).c_str()), quiet) {
 			load_chr = true;
 			chr_name_prefix = "chr";
 		} else {
@@ -22,7 +23,7 @@ bool LoadKmer(std::string & chr_name_prefix, std::string & kmer_seq, const char 
 			load_chr = false;
 		}
 	} else {
-		if (Fastaq::FastaLoad(kmer_seq, kmer_table, false, (chr_name_prefix + chr_name).c_str())) {
+		if (Fastaq::FastaLoad(kmer_seq, kmer_table, false, (chr_name_prefix + chr_name).c_str()), quiet) {
 			load_chr = true;
 		} else {
 			std::cerr << "WARNING: Cannot load kmer seqeunces " << chr_name << " from " << kmer_table << std::endl;
