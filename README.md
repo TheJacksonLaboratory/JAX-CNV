@@ -7,7 +7,7 @@ Clinical Laboratory Improvement Amendments- (CLIA-)graded copy number variation 
 To run the tool, the following dependencies are required
   * **Linux/Unix**    64-bit
   * **gcc**    version 4.9 or higher
-  * zlib
+  * **zlib**
   * **autoconf**    version 2.69 or higher
 
 genome_similarity depends on the following tools, which are already included in the genome_similarity/lib/
