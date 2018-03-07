@@ -33,7 +33,7 @@ bin/clia_cnv GrabJellyfishKmer --ascii -i <FASTA>.jf -f <FASTA> -o <FASTA>.kmer
 ### Detect CNVs
 A sorted BAM, FASTA and Kmer are required. The results will be printed on stdout or use -o to specify an output file.
 ```
-bin/clia_cnv GetCnvSignal -b <BAM> -k <FASTA>.kmer -f <FASTA> [-o <OUTPUT>]
+bin/clia_cnv GetCnvSignal -f <FASTA> -k <FASTA>.kmer -b <BAM> [-o <OUTPUT>]
 ```
 The complete command line options are:
 ```
