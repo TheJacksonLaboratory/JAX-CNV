@@ -416,17 +416,19 @@ bool CheckChrExistence(std::list<Fastaq::SRegion> & regions, const std::string &
 
 	// Make sure the references in bam header are all in fasta header.
 	// If not, we remove them from the further analysis.
+	bool exist = true;
 	std::list<Fastaq::SRegion>::iterator ite = regions.begin();
-	while (ite != regions.end()) {
+	while (ite != regions.end() && !regions.empty()) {
 		if (fasta_header.GetReferenceId(ite->chr.c_str()) == -1) {
 			std::cerr << "Warning: " << ite->chr << " is not in fasta so it won't be further processed." << std::endl;
 			regions.erase(ite);
+			exist = false;
 			if (ite != regions.end()) ++ite;
 		}
 		if (ite != regions.end()) ++ite;
 	}
 
-	return true;
+	return exist;
 
 }
 
