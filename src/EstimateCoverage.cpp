@@ -14,7 +14,7 @@ bool LoadKmer(std::string & chr_name_prefix, std::string & kmer_seq, const char 
 	if (chr_name_prefix.empty()) {
 		if (Fastaq::FastaLoad(kmer_seq, kmer_table, false, chr_name.c_str())) {
 			load_chr = true;
-		} else if (Fastaq::FastaLoad(kmer_seq, kmer_table, false, (chr_name + "chr").c_str())) {
+		} else if (Fastaq::FastaLoad(kmer_seq, kmer_table, false, ("chr" + chr_name).c_str())) {
 			load_chr = true;
 			chr_name_prefix = "chr";
 		} else {
@@ -22,7 +22,7 @@ bool LoadKmer(std::string & chr_name_prefix, std::string & kmer_seq, const char 
 			load_chr = false;
 		}
 	} else {
-		if (Fastaq::FastaLoad(kmer_seq, kmer_table, false, (chr_name + chr_name_prefix).c_str())) {
+		if (Fastaq::FastaLoad(kmer_seq, kmer_table, false, (chr_name_prefix + chr_name).c_str())) {
 			load_chr = true;
 		} else {
 			std::cerr << "WARNING: Cannot load kmer seqeunces " << chr_name << " from " << kmer_table << std::endl;
@@ -51,8 +51,9 @@ void CalculateChrCoverage(std::vector<float> & coverages, std::string & chr_name
 				++pos;
 				++length;
 			}
+
 			if (length > min_region_size) {
-				const std::string cat_region = chr_name + ":" + std::to_string(pos - length) + '-' +  std::to_string(pos);
+				const std::string cat_region = chr_name_prefix + chr_name + ":" + std::to_string(pos - length) + '-' +  std::to_string(pos);
 				hts_itr_t * ite = sam_itr_querys(idx, header, cat_region.c_str());
 				bam1_t * aln = bam_init1();
 				unsigned int base_count = 0;
@@ -66,7 +67,7 @@ void CalculateChrCoverage(std::vector<float> & coverages, std::string & chr_name
 						}
 					}
 				}
-				//std::cerr << cat_region << "\t" << base_count / static_cast<float>(length) << std::endl;
+				//std::cerr << chr_name_prefix + cat_region << "\t" << base_count / static_cast<float>(length) << std::endl;
 				hts_itr_destroy(ite);
 				bam_destroy1(aln);
 				coverages.push_back(base_count / static_cast<float>(length));
@@ -143,7 +144,9 @@ int EstimateCoverage(std::vector<float> & coverages, const char * bam_filename, 
 		for (std::vector<float>::const_iterator cov_ite = chr_cov.begin(); cov_ite != chr_cov.end(); ++cov_ite) 
 			cov_chr_total += *cov_ite;
 		coverages[i] = cov_chr_total / static_cast<float>(chr_cov.size());
-		//std::cerr << Human::HumanAutosome[i] << "\t" << coverages[i] << std::endl;
+#ifdef DEBUG
+		std::cerr << Human::HumanAutosome[i] << "\t" << coverages[i] << std::endl;
+#endif
 	}
 
 	for (int i  = 0; i < Human::HumanAllosomeSize; ++i) {
@@ -158,7 +161,9 @@ int EstimateCoverage(std::vector<float> & coverages, const char * bam_filename, 
 		for (std::vector<float>::const_iterator cov_ite = chr_cov.begin(); cov_ite != chr_cov.end(); ++cov_ite) 
 			cov_chr_total += *cov_ite;
 		coverages[i + Human::HumanAutosomeSize] = cov_chr_total / static_cast<float>(chr_cov.size());
-		//std::cerr << Human::HumanAllosome[i] << "\t" << coverages[i + Human::HumanAutosomeSize] << std::endl;
+#ifdef DEBUG
+		std::cerr << Human::HumanAllosome[i] << "\t" << coverages[i + Human::HumanAutosomeSize] << std::endl;
+#endif
 	}
 
 	int all_chr_cov = 0;
