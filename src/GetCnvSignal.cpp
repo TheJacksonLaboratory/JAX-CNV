@@ -496,7 +496,7 @@ int GetCnvSignal::Run () const {
 		std::vector <SReadDepth> hmm_rd; // The list to collect read depth info for HMM.
 		ProcessBam(hmm_rd, bam_signal_out, !cmdline.log.empty(), cmdline.bam.c_str(), *ite, cmdline.bin, ref_seq, kmer_seq, cmdline.aln_qual);
 		// Perform HMM	
-		CallHmm::HmmAndViterbi(cnvs, ref_name, hmm_rd, cmdline.bin, coverage);
+		CallHmm::HmmAndViterbi(cnvs, ref_name, hmm_rd, cmdline.bin, cmdline.minimum_report_size, coverage);
 	}
 
 	std::cerr << "Message: HMM completes." << std::endl;
@@ -516,7 +516,7 @@ int GetCnvSignal::Run () const {
 		}
 	}
 	for (std::vector<SHmmStats>::const_iterator ite = cnvs.begin(); ite != cnvs.end(); ++ite) {
-		if (ite->length > 45000) {
+		if (ite->length > cmdline.minimum_report_size) {
 			std::string tmp;
 			tmp = ite->chr + "\t" + std::to_string(ite->pos) + "\t" + std::to_string(ite->pos + ite->length) + "\t";
 			switch(ite->stats) {

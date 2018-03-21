@@ -128,7 +128,8 @@ void ConsolidateStats(std::vector <SHmmStatsHeap> & smooth_result, std::vector <
 }
 
 void SmoothStats(std::vector<SHmmStats> & cnvs, const std::string & ref_name, 
-			const std::vector <SReadDepth>& read_depth, const int bin_size, const int* q, const int T) {
+			const std::vector <SReadDepth>& read_depth, const int bin_size, const unsigned int minimum_report_size, 
+			const int* q, const int T) {
 	if (read_depth.size() != T) {
 		std::cerr << "ERROR: HMM read_depth's size does not match with the number of stats." << std::endl;
 		return;
@@ -229,7 +230,7 @@ void SmoothStats(std::vector<SHmmStats> & cnvs, const std::string & ref_name,
 
 	// Dump the final results	
 	for (std::vector <SHmmStatsHeap>::const_iterator ite = heap.begin(); ite != heap.end(); ++ite) {
-		if (!smooth_result[ite->id].merged && ite->hmm_stats.stats != 3 && ite->hmm_stats.length > 45000) {
+		if (!smooth_result[ite->id].merged && ite->hmm_stats.stats != 3 && ite->hmm_stats.length > minimum_report_size) {
 			cnvs.push_back(ite->hmm_stats);
 			cnvs.back().chr = ref_name;
 		}
@@ -240,7 +241,8 @@ void SmoothStats(std::vector<SHmmStats> & cnvs, const std::string & ref_name,
 } // namespace
 
 namespace CallHmm { 
-bool HmmAndViterbi (std::vector<SHmmStats> & cnvs, const std::string & ref_name, const std::vector <SReadDepth>& read_depth, const int & bin_size, const int & coverage) {
+bool HmmAndViterbi (std::vector<SHmmStats> & cnvs, const std::string & ref_name, const std::vector <SReadDepth> & read_depth, 
+	const int bin_size, const unsigned int minimum_report_size, const int coverage) {
 	if (read_depth.empty()) return false;
 
 	// Init HMM
@@ -284,7 +286,7 @@ bool HmmAndViterbi (std::vector<SHmmStats> & cnvs, const std::string & ref_name,
 #endif
 	
 	ViterbiLog(&hmm, T, O, delta, psi, q, &logproba);
-	SmoothStats(cnvs, ref_name, read_depth, bin_size, q, T);
+	SmoothStats(cnvs, ref_name, read_depth, bin_size, minimum_report_size,q, T);
 
 	// Clean up
 	for (int i = 1; i <= hmm.N; ++i) {

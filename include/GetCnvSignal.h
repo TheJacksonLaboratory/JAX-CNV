@@ -5,6 +5,7 @@
 #include <unistd.h>
 #include <getopt.h>
 #include <string>
+#include <algorithm>
 
 struct SGetCnvSignalCml {
 	SGetCnvSignalCml(){}
@@ -22,6 +23,7 @@ struct SGetCnvSignalCml {
 	int coverage = 0;	// -c --coverage
 	std::string region;     // -r --region
 	uint8_t aln_qual = 40;	// -q --aln_qual
+	unsigned int minimum_report_size = 45000;	// -m --minimum_report_size
 	int bin = 50;		// --bin
 	std::string log;	// --log
 	float unique_kmer = 0.6;	// --unique_kmer
@@ -30,7 +32,7 @@ struct SGetCnvSignalCml {
 	// command line
 	std::string cmd;
 
-	const char* short_option = "hb:k:f:o:c:r:";
+	const char* short_option = "hb:k:f:o:c:r:q:m:";
 
 	// Help list
 	const std::string Help (const char* program) const { return
@@ -47,6 +49,7 @@ struct SGetCnvSignalCml {
 		std::string("	-c --coverage <INT>		The expected coverage.\n") +
 		std::string("	-r --region chr:begin-end	A target region.\n") +
 		std::string("	-q --aln_qual			A mapping quality filter for alignments. [40]\n") +
+		std::string("	-m --minimum_report_size	The minimum report SV size. [45K]\n") +
 		std::string("	--bin <INT>			Report a result for each # bp. [50]\n") +
 		std::string("	--log <FILE>			Log output.\n" +
 		std::string("	--unique_kmer <FLOAT>		Require percentage of unique kmer to report a CNV. [0.6]\n") +
@@ -111,6 +114,7 @@ struct SGetCnvSignalCml {
 			{"coverage", required_argument, NULL, 'c'},
 			{"region", required_argument, NULL, 'r'},
 			{"aln_qual", required_argument, NULL, 'q'},
+			{"minimum_report_size", required_argument, NULL, 'm'},
 			{"bin", required_argument, NULL, 2},
 			{"log", required_argument, NULL, 3},
 			{"unique_kmer", required_argument, NULL, 4},
@@ -119,7 +123,9 @@ struct SGetCnvSignalCml {
 		};
 		int option_index = 0;
 		int c = -1;
+		bool error = false;
 		while ((c = getopt_long(argc, argv, short_option, long_option, &option_index)) != -1) {
+			std::string tmp;
 			switch (c) {
 				case 'h': help = true; break;
 				case 'k': kmer_table = optarg; break;
@@ -129,6 +135,21 @@ struct SGetCnvSignalCml {
 				case 'c': coverage = atoi(optarg); break;
 				case 'r': region = optarg; break;
 				case 'q': aln_qual = atoi(optarg); break;
+				case 'm':
+					tmp = optarg;
+					if (std::all_of(tmp.begin(), tmp.end(), ::isdigit)) { // all digits
+						minimum_report_size = atoi(optarg);
+					} else {
+						if ((tmp.back() == 'K' || tmp.back() == 'k') && (std::all_of(tmp.begin(), tmp.end() - 1, ::isdigit))) {
+							minimum_report_size = atoi(tmp.substr(0, tmp.size()-1).c_str()) * 1000;
+						} else if ((tmp.back() == 'M' || tmp.back() == 'm') && (std::all_of(tmp.begin(), tmp.end() - 1, ::isdigit))) {
+							minimum_report_size = atoi(tmp.substr(0, tmp.size()-1).c_str()) * 1000000;
+						} else {
+							std::cerr << "Error: Cannot parse " << tmp << ". Please use all digits, or K or M as suffix." << std::endl;
+							error = true;
+						}
+					}
+					break;
 				case 2: bin = atoi(optarg); break;
 				case 3: log = optarg; break;
 				case 4: unique_kmer = atof(optarg); break;
@@ -142,7 +163,7 @@ struct SGetCnvSignalCml {
 			return false;
 		}
 
-		return CheckArg();
+		return error && CheckArg();
 	}
 }; // SGetCnvSignalCml
 

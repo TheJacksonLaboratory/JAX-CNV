@@ -4,8 +4,8 @@
 #include "DataStruct.h"
 
 namespace CallHmm {
-bool HmmAndViterbi (std::vector<SHmmStats> & cnvs, const std::string & ref_name, 
-			const std::vector <SReadDepth>& read_depth, const int & bin_size, const int & coverage);
+bool HmmAndViterbi (std::vector<SHmmStats> & cnvs, const std::string & ref_name, const std::vector <SReadDepth>& read_depth, 
+			const int bin_size, const unsigned int minimum_report_size, const int coverage);
 
 //namespace ReadDepthHmm { 
 const int hmm_N = 5;
