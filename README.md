@@ -17,7 +17,7 @@ genome_similarity depends on the following tools, which are already included in 
 
 ## Download and Installation
 ```Shell
-git clone https://github.com/TheJacksonLaboratory/genome_similarity.git
+git clone --recursive https://github.com/TheJacksonLaboratory/genome_similarity.git
 cd genome_similarity
 make
 ```
