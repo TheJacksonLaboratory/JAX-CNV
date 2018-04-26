@@ -523,7 +523,7 @@ int GetCnvSignal::Run () const {
 				case 1: tmp += "DEL\tCN=1\n"; break;
 				case 2: tmp += "DEL\tCN=1\n"; break;
 				case 4: tmp += "DUP\tCN=3\n"; break;
-				case 5: tmp += "DEL\tCN>3\n"; break;
+				case 5: tmp += "DUP\tCN>3\n"; break;
 			}
 			if (use_output_file) output << tmp;
 			else std::cout << tmp;
