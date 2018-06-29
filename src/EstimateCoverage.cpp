@@ -59,7 +59,9 @@ void CalculateChrCoverage(std::vector<float> & coverages, std::string & chr_name
 				bam1_t * aln = bam_init1();
 				unsigned int base_count = 0;
 				while (ite && sam_itr_next(bam_reader, ite, aln) >= 0) {
-					if (!(aln->core.flag & BAM_FUNMAP)) {
+					const bool bad_al = aln->core.flag & BAM_FUNMAP || aln->core.flag & BAM_FSECONDARY || aln->core.flag & BAM_FQCFAIL 
+								|| aln->core.flag & BAM_FDUP || aln->core.flag & BAM_FSUPPLEMENTARY;
+					if (!bad_al) {
 						const uint32_t* pCigar = bam_get_cigar(aln);
 						for (uint32_t i = 0; i < aln->core.n_cigar; ++i) {
 							const uint32_t op = bam_cigar_op(*(pCigar + i));
