@@ -87,82 +87,81 @@ void ConsolidateStats(std::vector <SHmmStatsHeap> & smooth_result, std::vector <
 	std::sort(heap.begin(), heap.end(), SortByLength);
 	for (std::vector <SHmmStatsHeap>::reverse_iterator ite = heap.rbegin(); ite != heap.rend(); ++ite) {
 		if (!smooth_result[ite->id].merged && ite->hmm_stats.stats != 3) {
+#ifdef DEBUG
+			std::cerr << "[Merging Anchor] " << ite->hmm_stats.chr << "\t" << ite->hmm_stats.pos << "\t" 
+					<< ite->hmm_stats.length << "\t" << ite->hmm_stats.stats << std::endl;
+#endif
 			// Forward merging
 			for (unsigned int i = ite->id + 1; i < smooth_result.size(); ++i) {
+#ifdef DEBUG
+				std::cerr << "\t[Merging Target] " << smooth_result[i].hmm_stats.chr << "\t" << smooth_result[i].hmm_stats.pos << "\t" << smooth_result[i].hmm_stats.length << "\t" << smooth_result[i].hmm_stats.stats << std::endl;
+#endif
 				if (smooth_result[i].merged) break;
 				if (smooth_result[i].hmm_stats.stats == 3) continue;
-				const bool consistant_type = ite->hmm_stats.stats == smooth_result[i].hmm_stats.stats;
+				//const bool consistant_type = ite->hmm_stats.stats == smooth_result[i].hmm_stats.stats;
 				//const bool consistant_type = ((ite->hmm_stats.stats == 1 || ite->hmm_stats.stats == 2) 
 				//					&& (smooth_result[i].hmm_stats.stats == 1 || smooth_result[i].hmm_stats.stats == 2))
 				//				|| ((ite->hmm_stats.stats == 4 || ite->hmm_stats.stats == 5)
 				//					&& (smooth_result[i].hmm_stats.stats == 4 || smooth_result[i].hmm_stats.stats == 5));
+				const bool consistant_type = (ite->hmm_stats.stats == smooth_result[i].hmm_stats.stats)
+								|| ((ite->hmm_stats.stats == 4 || ite->hmm_stats.stats == 5)
+									&& (smooth_result[i].hmm_stats.stats == 4 || smooth_result[i].hmm_stats.stats == 5));
 				if (!consistant_type) { // Different stats
 					break;
 				} else {
-					if (CheckMerge(ite->hmm_stats, smooth_result[i].hmm_stats))
+					if (CheckMerge(ite->hmm_stats, smooth_result[i].hmm_stats)) {
+#ifdef DEBUG
+						std::cerr << "\tMERGE SUCCESSFUL" << std::endl;
+#endif
 						smooth_result[i].merged = true;
-					else 
+					} else {
+#ifdef DEBUG
+						std::cerr << "\tMERGE FAIL" << std::endl;
+#endif
 						break;
+					}
 				}
 			}
+#ifdef DEBUG
+			std::cerr << "Forward merging done." << std::endl;
+#endif
 			// Backward merging
 			for (unsigned int i = ite->id; i > 0; --i) {
+#ifdef DEBUG
+				std::cerr << "\t[Merging Target] " << smooth_result[i - 1].hmm_stats.chr << "\t" << smooth_result[i - 1].hmm_stats.pos << "\t" << smooth_result[i - 1].hmm_stats.length << "\t" << smooth_result[i - 1].hmm_stats.stats << std::endl;
+#endif
 				if (smooth_result[i - 1].merged) break;
 				if (smooth_result[i - 1].hmm_stats.stats == 3) continue;
-				const bool consistant_type = ite->hmm_stats.stats == smooth_result[i - 1].hmm_stats.stats;
+				//const bool consistant_type = ite->hmm_stats.stats == smooth_result[i - 1].hmm_stats.stats;
 				//const bool consistant_type = ((ite->hmm_stats.stats == 1 || ite->hmm_stats.stats == 2) 
 				//					&& (smooth_result[i - 1].hmm_stats.stats == 1 || smooth_result[i - 1].hmm_stats.stats == 2))
 				//				|| ((ite->hmm_stats.stats == 4 || ite->hmm_stats.stats == 5)
 				//					&& (smooth_result[i - 1].hmm_stats.stats == 4 || smooth_result[i - 1].hmm_stats.stats == 5));
+				const bool consistant_type = (ite->hmm_stats.stats == smooth_result[i - 1].hmm_stats.stats)
+								|| ((ite->hmm_stats.stats == 4 || ite->hmm_stats.stats == 5)
+									&& (smooth_result[i - 1].hmm_stats.stats == 4 || smooth_result[i - 1].hmm_stats.stats == 5));
 				if (!consistant_type) { // Different stats
 					break;
 				} else {
-					if (CheckMerge(ite->hmm_stats, smooth_result[i - 1].hmm_stats))
+					if (CheckMerge(ite->hmm_stats, smooth_result[i - 1].hmm_stats)) {
+#ifdef DEBUG
+						std::cerr << "\tMERGE SUCCESSFUL" << std::endl;
+#endif
 						smooth_result[i - 1].merged = true;
-					else 
+					} else {
+#ifdef DEBUG
+						std::cerr << "\tMERGE FAIL" << std::endl;
+#endif
 						break;
+					}
 				}
 			}
 		}
 	}
 }
 
-void SmoothStats(std::vector<SHmmStats> & cnvs, const std::string & ref_name, 
-			const std::vector <SReadDepth>& read_depth, const int bin_size, const unsigned int minimum_report_size, 
-			const int* q, const int T) {
-	if (read_depth.size() != T) {
-		std::cerr << "ERROR: HMM read_depth's size does not match with the number of stats." << std::endl;
-		return;
-	}
-
-	std::vector <SHmmStats> result;
-	result.reserve(T);
-	std::vector <SReadDepth>::const_iterator rd_ite = read_depth.begin();
-	// Ccollapse stats.
-	for (int i = 1; i <= T; ++i, ++rd_ite) {
-		// If there are >50% N's in the region, the region won't be taken in account so we set the stats to NORMAL.
-#ifdef DEBUG
-		std::cerr << rd_ite->pos << "\t" << rd_ite->n_count << "\t" << (((rd_ite->n_count * 2) > bin_size) ? 3 : q[i]) << std::endl;
-#endif
-		int cur_stat = (rd_ite->n_count * 2) > bin_size ? 3 : q[i];
-		// If there are >50% low qual alignments in the region, the region won't be taken in account so we set the stats to NORMAL.
-		cur_stat = rd_ite->low_mq_alignments > 0.5 ? 3 : cur_stat;
-		
-		if (result.empty() || cur_stat != result.back().stats) { // Create the init hmm_stats.
-			SHmmStats tmp(rd_ite->pos, cur_stat, 0);
-			result.push_back(tmp);
-		}
-		result.back().length += bin_size;
-	}
-
-#ifdef DEBUG
-	std::cerr << "HMM before smoothing" << std::endl;
-	for (std::vector <SHmmStats>::const_iterator ite = result.begin(); ite != result.end(); ++ite) {
-		std::cerr << ite->pos << "\t" << ite->stats << "\t" << ite->length << std::endl;
-	}
-#endif
-
-	std::vector <SHmmStatsHeap> smooth_result;
+void MergeStats (std::vector <SHmmStats> & result, std::vector <SHmmStatsHeap> & smooth_result) {
+	//std::vector <SHmmStatsHeap> smooth_result;
 	unsigned int vector_id = 0, out_stats_length = 0, total_out_stats_length = 0, out_stats_count = 0;
 	SHmmStatsHeap tmp_heap(result.front(), vector_id);
 	smooth_result.push_back(tmp_heap);
@@ -206,7 +205,45 @@ void SmoothStats(std::vector<SHmmStats> & cnvs, const std::string & ref_name,
 			out_stats_count = 0;
 		}
 	}
+}
 
+void SmoothStats(std::vector<SHmmStats> & cnvs, const std::string & ref_name, 
+			const std::vector <SReadDepth>& read_depth, const int bin_size, const unsigned int minimum_report_size, 
+			const int* q, const int T) {
+	if (read_depth.size() != T) {
+		std::cerr << "ERROR: HMM read_depth's size does not match with the number of stats." << std::endl;
+		return;
+	}
+
+	std::vector <SHmmStats> result;
+	result.reserve(T);
+	std::vector <SReadDepth>::const_iterator rd_ite = read_depth.begin();
+	// Ccollapse stats.
+	for (int i = 1; i <= T; ++i, ++rd_ite) {
+		// If there are >50% N's in the region, the region won't be taken in account so we set the stats to NORMAL.
+#ifdef DEBUG
+		std::cerr << rd_ite->pos << "\t" << rd_ite->n_count << "\t" << (((rd_ite->n_count * 2) > bin_size) ? 3 : q[i]) << std::endl;
+#endif
+		int cur_stat = (rd_ite->n_count * 2) > bin_size ? 3 : q[i];
+		// If there are >50% low qual alignments in the region, the region won't be taken in account so we set the stats to NORMAL.
+		cur_stat = rd_ite->low_mq_alignments > 0.5 ? 3 : cur_stat;
+		
+		if (result.empty() || cur_stat != result.back().stats) { // Create the init hmm_stats.
+			SHmmStats tmp(rd_ite->pos, cur_stat, 0);
+			result.push_back(tmp);
+		}
+		result.back().length += bin_size;
+	}
+
+#ifdef DEBUG
+	std::cerr << "HMM before smoothing" << std::endl;
+	for (std::vector <SHmmStats>::const_iterator ite = result.begin(); ite != result.end(); ++ite) {
+		std::cerr << ite->pos << "\t" << ite->stats << "\t" << ite->length << std::endl;
+	}
+#endif
+	std::vector <SHmmStatsHeap> smooth_result;
+	MergeStats(result, smooth_result);
+	result.clear(); // Save some memory
 
 #ifdef DEBUG
 	std::cerr << "HMM after smoothing" << std::endl;
