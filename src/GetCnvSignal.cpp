@@ -76,7 +76,9 @@ void PrintCleanBamData (SBamData & bam_data, std::vector <SReadDepth> & hmm_rd, 
 				<< bam_data.proper_pairs << "\t" // proper pairs
 				<< bam_data.inproper_pairs << "\t" // inproper pairs
 				<< bam_data.mate_unmapped << "\t" // mate unmapped
-				<< bam_data.low_mq_alignments / static_cast<double>(bam_data.total_read) << "\t"; // ratio of low mq alignments
+				<< ((bam_data.total_read < 4) ? 0 : bam_data.low_mq_alignments / static_cast<double>(bam_data.total_read))
+				<< "\t"; // ratio of low mq alignments
+				// < 4, Not enough reads to tell the low-mapping quality.
 	
 			// Isize
 			uint64_t sum = 0;
@@ -106,6 +108,9 @@ void PrintCleanBamData (SBamData & bam_data, std::vector <SReadDepth> & hmm_rd, 
 
 	SReadDepth rd_tmp(cur_pos, round(sum / static_cast<double>(pos_count)));
 	rd_tmp.low_mq_alignments = bam_data.low_mq_alignments / static_cast<double>(bam_data.total_read);
+	//rd_tmp.low_mq_alignments = (bam_data.total_read < 4)
+	//				? 0 // Not enough reads to tell the low-mapping quality.
+	//				: bam_data.low_mq_alignments / static_cast<double>(bam_data.total_read);
 	hmm_rd.push_back(rd_tmp);
 
 	// Clean
@@ -520,7 +525,7 @@ int GetCnvSignal::Run () const {
 			std::string tmp;
 			tmp = ite->chr + "\t" + std::to_string(ite->pos) + "\t" + std::to_string(ite->pos + ite->length) + "\t";
 			switch(ite->stats) {
-				case 1: tmp += "DEL\tCN=1\n"; break;
+				case 1: tmp += "DEL\tCN=0\n"; break;
 				case 2: tmp += "DEL\tCN=1\n"; break;
 				case 4: tmp += "DUP\tCN=3\n"; break;
 				case 5: tmp += "DUP\tCN>3\n"; break;

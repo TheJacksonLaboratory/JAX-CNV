@@ -177,7 +177,6 @@ void MergeStats (std::vector <SHmmStats> & result, std::vector <SHmmStatsHeap> &
 				out_stats_count = 0;
 			} else {
 				// Two stats are different.
-				//std::cerr << ite->pos << "\t" << ite->stats << "\t" << smooth_result.back().hmm_stats.stats << "\t" << ite->length << "\t" << out_stats_length << "\t" << ite->length / static_cast<double>(out_stats_length) << std::endl;
 				total_out_stats_length += ite->length;
 				out_stats_length += ite->length;
 				++out_stats_count;
@@ -219,14 +218,18 @@ void SmoothStats(std::vector<SHmmStats> & cnvs, const std::string & ref_name,
 	result.reserve(T);
 	std::vector <SReadDepth>::const_iterator rd_ite = read_depth.begin();
 	// Ccollapse stats.
+#ifdef DEBUG
+	std::cerr << "POS\tn_count\tlow_mq_alignments\tOri_stats" << std::endl;
+#endif
 	for (int i = 1; i <= T; ++i, ++rd_ite) {
 		// If there are >50% N's in the region, the region won't be taken in account so we set the stats to NORMAL.
 #ifdef DEBUG
-		std::cerr << rd_ite->pos << "\t" << rd_ite->n_count << "\t" << (((rd_ite->n_count * 2) > bin_size) ? 3 : q[i]) << std::endl;
+		std::cerr << rd_ite->pos << "\t" << rd_ite->n_count << "\t" << rd_ite->low_mq_alignments << "\t" << q[i] << std::endl;
 #endif
 		int cur_stat = (rd_ite->n_count * 2) > bin_size ? 3 : q[i];
+		// If the cur_stat is 1 (homo DEL), we don't estimate low_mq_alignments due to we don't expect enough reads to do so.
 		// If there are >50% low qual alignments in the region, the region won't be taken in account so we set the stats to NORMAL.
-		cur_stat = rd_ite->low_mq_alignments > 0.5 ? 3 : cur_stat;
+		if (cur_stat != 1) cur_stat = rd_ite->low_mq_alignments > 0.5 ? 3 : cur_stat;
 		
 		if (result.empty() || cur_stat != result.back().stats) { // Create the init hmm_stats.
 			SHmmStats tmp(rd_ite->pos, cur_stat, 0);
