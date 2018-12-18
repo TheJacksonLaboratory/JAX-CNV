@@ -27,7 +27,7 @@ struct SGetCnvSignalCml {
 	int bin = 50;		// --bin
 	std::string log;	// --log
 	float unique_kmer = 0.6;	// --unique_kmer
-	float kmer_score = 0.1;	// --kmer_score
+	float kmer_score = 0.5;	// --kmer_score
 	
 	// command line
 	std::string cmd;
