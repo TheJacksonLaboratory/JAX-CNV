@@ -1,4 +1,5 @@
 #include <iostream>
+#include <iterator>
 #include <cstring>
 #include <vector>
 #include <string>
@@ -288,6 +289,7 @@ bool HmmAndViterbi (std::vector<SHmmStats> & cnvs, const std::string & ref_name,
 	// Init HMM
 	int T = read_depth.size();
 	int* O = new int [T + 1]; // observation sequence O[1..T]
+	memset(O, 0, sizeof(O));
 	for (std::vector <SReadDepth>::const_iterator ite = read_depth.begin(); ite != read_depth.end(); ++ite) {
 		//const int rd_diff = (ite->count - coverage) / static_cast<double>(ite->kmer_score);
 		//int tmp_o = round((coverage + rd_diff) / coverage * 50);
@@ -312,18 +314,22 @@ bool HmmAndViterbi (std::vector<SHmmStats> & cnvs, const std::string & ref_name,
 	std::memcpy(hmm.pi + 1, hmm_pi, sizeof(double) * hmm.N);
 
 	int* q = new int [T + 1]; // resultant states
+	memset(q, 0, sizeof(q));
 	int** psi = new int* [T + 1];
 	double **delta = new double* [T + 1];
 	for (int i = 1; i <= T; ++i) {
 		psi[i] = new int [hmm.N + 1];
+		memset(psi[i], 0, sizeof(psi[i]));
 		delta[i] = new double [hmm.N + 1];
+		memset(delta[i], 0.0, sizeof(delta[i]));
 	}
-	double logproba = 0;
+	double logproba = 0.0;
+
 	// End of Init HMM
 	
-#ifdef DEBUG
+//#ifdef DEBUG
 //PrintHmm(hmm, T, O);
-#endif
+//#endif
 	
 	ViterbiLog(&hmm, T, O, delta, psi, q, &logproba);
 	SmoothStats(cnvs, ref_name, read_depth, bin_size, minimum_report_size,q, T);

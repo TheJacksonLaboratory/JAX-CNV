@@ -118,7 +118,6 @@ void ViterbiLog(HMM *phmm, int T, int *O, double **delta, int **psi,
  
                         delta[t][j] = maxval + biot[j][t]; 
                         psi[t][j] = maxvalind;
- 
                 }
         }
  
@@ -139,6 +138,7 @@ void ViterbiLog(HMM *phmm, int T, int *O, double **delta, int **psi,
 	for (t = T - 1; t >= 1; t--)
 		q[t] = psi[t+1][q[t+1]];
 
+	free_dmatrix(biot, 1, phmm->N, 1, T);
 }
  
 
