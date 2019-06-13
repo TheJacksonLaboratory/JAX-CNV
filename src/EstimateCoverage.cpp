@@ -123,23 +123,22 @@ void CalculateCoverage(int & all_chr_cov, std::vector<unsigned int> & aneuploidi
 	std::sort(aneuploidies.begin(), aneuploidies.end());
 }
 
-void DetermineGender(const int & all_chr_cov, const float & cov_x, const float & cov_y) {
-	bool female = false;
+void DetermineGender(const int & all_chr_cov, bool & female, bool & male, const float & cov_x, const float & cov_y) {
+	female = false;
 	if (all_chr_cov / cov_x > 1.75 && all_chr_cov / cov_x < 2.25)
 		female = true;
 	
-	bool male = false;
+	male = false;
 	if (((all_chr_cov / 2) / cov_y > 1.75) && ((all_chr_cov / 2) / cov_x < 2.25))
 		male = true;
 
-	if (female && !male) std::cerr << "Gender: Female." << std::endl;
-	else if (!female && male) std::cerr << "Gender: Male." << std::endl;
-	else std::cerr << "Gender: Cannot determine." << std::endl;
 }
 }
 
 namespace EstimateCoverage {
-int EstimateCoverage(std::vector<float> & coverages, const char * bam_filename, const char * kmer_table) {
+int EstimateCoverage(std::vector<float> & coverages, bool & female, bool & male, 
+	const char * bam_filename, const char * kmer_table) {
+
 	std::string chr_name_prefix;
 
 	samFile * bam_reader = sam_open(bam_filename, "r");
@@ -192,7 +191,7 @@ int EstimateCoverage(std::vector<float> & coverages, const char * bam_filename, 
 		std::cerr << "\t" << Human::HumanAutosome[*ite]; 
 	if (aneuploidies.size() > 0) std::cerr << std::endl;
 
-	DetermineGender(all_chr_cov, coverages[Human::HumanAutosomeSize], coverages[Human::HumanAutosomeSize + 1]);
+	DetermineGender(all_chr_cov, female, male, coverages[Human::HumanAutosomeSize], coverages[Human::HumanAutosomeSize + 1]);
 	// Clean up
 	bam_hdr_destroy(header);
 	sam_close(bam_reader);

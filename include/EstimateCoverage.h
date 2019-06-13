@@ -3,7 +3,8 @@
 
 namespace EstimateCoverage {
 
-int EstimateCoverage(std::vector<float> & coverages, const char * bam_filename, const char * kmer_table); // kmer_table is in FASTA format. 
+int EstimateCoverage(std::vector<float> & coverages, bool & female, bool & male, 
+			const char * bam_filename, const char * kmer_table); // kmer_table is in FASTA format. 
 
 namespace Human {
 static const int HumanAutosomeSize = 22;

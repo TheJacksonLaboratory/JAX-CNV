@@ -468,9 +468,14 @@ int GetCnvSignal::Run () const {
 
 	// Estimate Coverage
 	int coverage = cmdline.coverage;
+	bool female = false, male = false;
 	if (coverage == 0) {
 		std::vector<float> coverages;
-		coverage = EstimateCoverage::EstimateCoverage(coverages, cmdline.bam.c_str(), cmdline.kmer_table.c_str());
+		coverage = EstimateCoverage::EstimateCoverage(coverages, female, male, cmdline.bam.c_str(), cmdline.kmer_table.c_str());
+		if (female && !male) std::cerr << "Gender: Female." << std::endl;
+		else if (!female && male) std::cerr << "Gender: Male." << std::endl;
+		else std::cerr << "Gender: Cannot determine." << std::endl;
+
 		std::cerr << "Message: The estimated coverage is " << coverage << std::endl;
 	}
 
@@ -500,8 +505,20 @@ int GetCnvSignal::Run () const {
 		
 		std::vector <SReadDepth> hmm_rd; // The list to collect read depth info for HMM.
 		ProcessBam(hmm_rd, bam_signal_out, !cmdline.log.empty(), cmdline.bam.c_str(), *ite, cmdline.bin, ref_seq, kmer_seq, cmdline.aln_qual);
-		// Perform HMM	
-		CallHmm::HmmAndViterbi(cnvs, ref_name, hmm_rd, cmdline.bin, cmdline.minimum_report_size, coverage);
+		// Perform HMM
+		// TODO: Do not use the fix chromosome name.
+		if (ref_name == "chrX" || ref_name == "X") {
+			if (female == false && male == true)
+				CallHmm::HmmAndViterbi(cnvs, ref_name, hmm_rd, cmdline.bin, cmdline.minimum_report_size, (coverage / 2));
+			else
+				CallHmm::HmmAndViterbi(cnvs, ref_name, hmm_rd, cmdline.bin, cmdline.minimum_report_size, coverage);
+		}
+		else if (ref_name == "chrY" || ref_name == "Y") {
+			if (female == false && male == true) // Must be male for detecting chrY
+				CallHmm::HmmAndViterbi(cnvs, ref_name, hmm_rd, cmdline.bin, cmdline.minimum_report_size, (coverage / 2));
+		} else {
+			CallHmm::HmmAndViterbi(cnvs, ref_name, hmm_rd, cmdline.bin, cmdline.minimum_report_size, coverage);
+		}
 	}
 
 	std::cerr << "Message: HMM completes." << std::endl;
