@@ -7,7 +7,7 @@ LIB=$(MASTER_DIR)/lib
 AUTOCONF = autoconf
 AUTOHEADER = autoheader
 
-CFLAGS:=-pthread
+CFLAGS:=
 ifeq ($(mode), debug)
 	CFLAGS:=$(CFLAGS) -O0 -g -DDEBUG
 else
@@ -32,7 +32,7 @@ UMDHMM_SRC= $(LIB)/umdhmm-v1.02/backward.c \
 		$(LIB)/umdhmm-v1.02/viterbi.c
 
 INCLUDE = -I lib/jellyfish-2.2.6/include -I lib/fastaq/include/ -I lib/ -I lib/htslib/ -I include/
-LIBRARY = -lz -lcurl -lbz2 $(LIB)/fastaq/obj/*.o $(LIB)/jellyfish-2.2.6/lib/*.o \
+LIBRARY = -lz -lcurl -lbz2 -lpthread -lssl -lcrypto $(LIB)/fastaq/obj/*.o $(LIB)/jellyfish-2.2.6/lib/*.o \
 		$(patsubst %.c, %.o, $(UMDHMM_SRC) )
 
 JELLYFISH=$(LIB)/jellyfish-2.2.6/bin/jellyfish
