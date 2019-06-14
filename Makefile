@@ -20,7 +20,7 @@ export $(CXXFLAGS)
 
 SOURCES = main.cpp src/GrabJellyfishKmer.cpp src/GetCnvSignal.cpp src/GenerateKmer.cpp src/CallHmm.cpp src/EstimateCoverage.cpp
 
-PROGRAM=$(BIN_DIR)/clia_cnv
+PROGRAM=$(BIN_DIR)/JAX-CNV
 
 UMDHMM_SRC= $(LIB)/umdhmm-v1.02/backward.c \
 		$(LIB)/umdhmm-v1.02/baum.c \

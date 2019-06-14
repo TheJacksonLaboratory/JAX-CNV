@@ -23,7 +23,7 @@ struct SGetCnvSignalCml {
 	int coverage = 0;	// -c --coverage
 	std::string region;     // -r --region
 	uint8_t aln_qual = 40;	// -q --aln_qual
-	unsigned int minimum_report_size = 45000;	// -m --minimum_report_size
+	unsigned int minimum_report_size = 5000;	// -m --minimum_report_size
 	int bin = 50;		// --bin
 	std::string log;	// --log
 	float unique_kmer = 0.6;	// --unique_kmer
